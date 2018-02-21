@@ -4,10 +4,11 @@
 // ----------------------------------------------------------------------
 // Defines:
 //
-// #define OUTPUT_PhaseA 9
-// #define OUTPUT_PhaseB 10
-// #define OUTPUT_PhaseC 8
+#define OUTPUT_PhaseA 6
+#define OUTPUT_PhaseB 7
+#define OUTPUT_PhaseC 8
 
+#define DISPLAY_UPDATE_FREQ_IN_MS 400
 
 // ----------------------------------------------------------------------
 // LCD Stuff
@@ -42,28 +43,30 @@ void setup() {
 
     // From: https://forum.arduino.cc/index.php?topic=153645.0
     // Code for pins 9 and 10 to output at 20 kHz:
-    TCCR2B &= ~ _BV (CS22); // cancel pre-scaler of 64
-    TCCR2B |= _BV (CS21);   // use pre-scaler of 8 - Freq 20 kHz
+    // TCCR2B &= ~ _BV (CS22); // cancel pre-scaler of 64
+    // TCCR2B |= _BV (CS21);   // use pre-scaler of 8 - Freq 20 kHz
     // TCCR2B |= _BV (CS20);   // no pre-scaler - Freq: 31.37 kHz
     // analogWrite (9, 50);    // 19.6 % duty cycle
     // analogWrite (10, 200);  // 78.4 % duty cycle
-    
+
     // Code for pins 6, 7, 8
-    // TCCR4B &= ~ _BV (CS22); // cancel pre-scaler of 64
+    TCCR4B &= ~ _BV (CS22); // cancel pre-scaler of 64
     // TCCR4B |= _BV (CS21);   // use pre-scaler of 8 - Freq 20 kHz
-    // TCCR4B |= _BV (CS20);   // no pre-scaler - Freq: 31.37 kHz
+    TCCR4B |= _BV (CS20);   // no pre-scaler - Freq: 31.37 kHz
     // analogWrite (9, 50);    // 19.6 % duty cycle
     // analogWrite (10, 200);  // 78.4 % duty cycle
     
-
     // Debug:
     Serial.begin(9600);
     Serial.println("Starting!!!");
 
-    // for (int i=0; i<8; i++) {
-        // pinMode(i+22,OUTPUT);
-    // }
 
+    // Setup PWM outputs:
+    pinMode(OUTPUT_PhaseA, OUTPUT);
+    pinMode(OUTPUT_PhaseB, OUTPUT);
+    pinMode(OUTPUT_PhaseC, OUTPUT);
+
+    // Setup POT outputs:
     pinMode(50,OUTPUT);
     pinMode(51,OUTPUT);
     pinMode(52,OUTPUT);
@@ -73,6 +76,7 @@ void setup() {
     digitalWrite(52,LOW);
     digitalWrite(53,HIGH);
 
+    // Setup LCD:
     lcd.begin (20,4);
     lcd.setBacklightPin(LCD_BACKLIGHT_PIN,POSITIVE);
     lcd.setBacklight(HIGH);
@@ -81,21 +85,15 @@ void setup() {
     lcd.setCursor(0,1);
     lcd.print("Initializing..."); 
     delay(3000);
-    allStop(); 
     lcdReset();
-    Serial.println("LCD Reset!!!");
 }
 
 void lcdReset() {
     lcd.clear();
     lcd.home();
     // lcd.print("(X:");lcd.print(PacketsRX[1]);lcd.print(",Y:");lcd.print(PacketsRX[2]);lcd.print(") sum=");lcd.print(PacketsRX[0]);
-}
 
-void allStop() {
-    // Serial.print('\n'); Serial.write("All STOP +++++");
-    lcd.setCursor(12,3);
-    lcd.print("All Stop");
+    Serial.println("LCD Reset!!!");
 }
 
 void UpdateDisplay(CONTROLCONTEXT_ST & controlContext) {
@@ -124,19 +122,26 @@ void loop()
 {
     unsigned long currentTime = millis();
     static unsigned long prevDispTime = 0;
+    static unsigned long prevPhaseTime = 0;
  
     // Read Pots:
     int pot1 = analogRead(A15);
     int pot2 = analogRead(A14);
     controlContext.powerLevel = pot1/4;
-    controlContext.delay_in_ms = 10 + pot2/2;
+    controlContext.delay_in_ms = 10 + pot2*2;
 
     // Adjust power output:
+    if ((currentTime - prevPhaseTime) > controlContext.delay_in_ms) {
+        if (controlContext.curPhase < 5) controlContext.curPhase++;
+        else                             controlContext.curPhase = 0;
 
+        digitalWrite(OUTPUT_PhaseA, controlContext.powerLevel);
 
+        prevPhaseTime = currentTime;
+    }
 
     // Update display/debug:
-    if ((currentTime - prevDispTime) > 400) {
+    if ((currentTime - prevDispTime) > DISPLAY_UPDATE_FREQ_IN_MS) {
         // Debug info...
         char buffer[200];
         sprintf(buffer, "Power:%d, Delay:%d\n", controlContext.powerLevel, controlContext.delay_in_ms);
