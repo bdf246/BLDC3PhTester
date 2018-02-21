@@ -38,7 +38,7 @@ void setup() {
     lcd.setBacklightPin(LCD_BACKLIGHT_PIN,POSITIVE);
     lcd.setBacklight(HIGH);
     lcd.home (); // go home
-    lcd.print("BLDC Control Starting...");
+    lcd.print("BLDC Control");
     lcd.setCursor(0,1);
     lcd.print("Initializing..."); 
     delay(3000);
@@ -64,12 +64,17 @@ void UpdateDisplay(CONTROLCONTEXT_ST & controlContext) {
     // TODO:: ensure not too much com. to LCD (update every 1 second)
     // lcd.print(controlContext.ctlParms.);
     //
-    char line1[41];
-    sprintf(line1, "Power:%4d, Delay:%4d\n", controlContext.powerLevel, controlContext.delay_in_ms);
-    
+    char line[41];
+
     lcd.clear();
     lcd.home();
-    lcd.print(line1);
+    lcd.setCursor(0,0);
+    sprintf(line, "Power:%4d", controlContext.powerLevel);
+    lcd.print(line);
+
+    lcd.setCursor(0,1);
+    sprintf(line, "Delay:%4d", controlContext.delay_in_ms);
+    lcd.print(line);
 }
 
 void loop()
