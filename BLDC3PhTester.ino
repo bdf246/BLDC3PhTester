@@ -8,8 +8,8 @@
 #define OUTPUT_PhaseB 7
 #define OUTPUT_PhaseC 8
 
-#define DISPLAY_UPDATE_FREQ_IN_MS 300
-#define DISPLAY_BLANKINGIME_IN_MS 100 // For updating ~4 digits, blank them for this time before update.
+#define DISPLAY_UPDATE_FREQ_IN_MS 200
+#define DISPLAY_BLANKINGIME_IN_MS 60 // For updating ~4 digits, blank them for this time before update.
 #define DISPLAY_UPDATE_DELAY_CHECK_IN_MS (DISPLAY_UPDATE_FREQ_IN_MS-DISPLAY_BLANKINGIME_IN_MS)
 
 // ----------------------------------------------------------------------
