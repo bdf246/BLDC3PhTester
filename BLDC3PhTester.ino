@@ -94,13 +94,6 @@ void lcdReset() {
     // lcd.print("(X:");lcd.print(PacketsRX[1]);lcd.print(",Y:");lcd.print(PacketsRX[2]);lcd.print(") sum=");lcd.print(PacketsRX[0]);
 
     Serial.println("LCD Reset!!!");
-}
-
-void UpdateDisplay(CONTROLCONTEXT_ST & controlContext) {
-    // lcd.setCursor(0,3);
-    // TODO:: ensure not too much com. to LCD (update every 1 second)
-    // lcd.print(controlContext.ctlParms.);
-    //
     char line[41];
 
     lcd.clear();
@@ -116,6 +109,22 @@ void UpdateDisplay(CONTROLCONTEXT_ST & controlContext) {
     lcd.setCursor(0,2);
     sprintf(line, "Phase:%4d ", controlContext.curPhase);
     lcd.print(line);
+}
+
+void UpdateDisplay(CONTROLCONTEXT_ST & controlContext) {
+    char text[10];
+
+    lcd.setCursor(7,0);
+    sprintf(text, "%4d", controlContext.powerLevel);
+    lcd.print(text);
+
+    lcd.setCursor(7,1);
+    sprintf(text, "%4d", controlContext.delay_in_ms);
+    lcd.print(text);
+
+    lcd.setCursor(7,2);
+    sprintf(text, "%4d", controlContext.curPhase);
+    lcd.print(text);
 }
 
 void loop()
