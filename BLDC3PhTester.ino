@@ -1,7 +1,16 @@
 #include <LCD.h>
 #include <LiquidCrystal_I2C.h>
 
+// ----------------------------------------------------------------------
+// Defines:
+//
+// #define OUTPUT_PhaseA 9
+// #define OUTPUT_PhaseB 10
+// #define OUTPUT_PhaseC 8
 
+
+// ----------------------------------------------------------------------
+// LCD Stuff
 // Find your address from I2C Scanner function and add it here:
 #define LCD_I2C 0x3F
 #define LCD_BACKLIGHT_PIN 3
@@ -12,20 +21,40 @@
 #define LCD_D5_pin  5
 #define LCD_D6_pin  6
 #define LCD_D7_pin  7
-
 LiquidCrystal_I2C  lcd(LCD_I2C,LCD_En_pin,LCD_Rw_pin,LCD_Rs_pin,LCD_D4_pin,LCD_D5_pin,LCD_D6_pin,LCD_D7_pin);
 
+
+// ----------------------------------------------------------------------
+// Main Logic Data Structures:
 
 typedef struct {
     int powerLevel;
     int delay_in_ms;
+    int curPhase;
 } CONTROLCONTEXT_ST;
 
     
-static CONTROLCONTEXT_ST controlContext = {0, 500};
+static CONTROLCONTEXT_ST controlContext = {0, 500, 0};
+// ----------------------------------------------------------------------
 
 
 void setup() {
+
+    // From: https://forum.arduino.cc/index.php?topic=153645.0
+    // Code for pins 9 and 10 to output at 20 kHz:
+    TCCR2B &= ~ _BV (CS22); // cancel pre-scaler of 64
+    TCCR2B |= _BV (CS21);   // use pre-scaler of 8 - Freq 20 kHz
+    // TCCR2B |= _BV (CS20);   // no pre-scaler - Freq: 31.37 kHz
+    // analogWrite (9, 50);    // 19.6 % duty cycle
+    // analogWrite (10, 200);  // 78.4 % duty cycle
+    
+    // Code for pins 6, 7, 8
+    // TCCR4B &= ~ _BV (CS22); // cancel pre-scaler of 64
+    // TCCR4B |= _BV (CS21);   // use pre-scaler of 8 - Freq 20 kHz
+    // TCCR4B |= _BV (CS20);   // no pre-scaler - Freq: 31.37 kHz
+    // analogWrite (9, 50);    // 19.6 % duty cycle
+    // analogWrite (10, 200);  // 78.4 % duty cycle
+    
 
     // Debug:
     Serial.begin(9600);
@@ -79,30 +108,34 @@ void UpdateDisplay(CONTROLCONTEXT_ST & controlContext) {
     lcd.clear();
     lcd.home();
     lcd.setCursor(0,0);
-    sprintf(line, "Power:%4d", controlContext.powerLevel);
+    sprintf(line, "Power:%4d [0-255]", controlContext.powerLevel);
     lcd.print(line);
 
     lcd.setCursor(0,1);
-    sprintf(line, "Delay:%4d", controlContext.delay_in_ms);
+    sprintf(line, "Delay:%4d [ms]", controlContext.delay_in_ms);
+    lcd.print(line);
+
+    lcd.setCursor(0,2);
+    sprintf(line, "Phase:%4d ", controlContext.curPhase);
     lcd.print(line);
 }
 
 void loop()
 {
-    static unsigned long currentTime = 0;
+    unsigned long currentTime = millis();
     static unsigned long prevDispTime = 0;
-
-    static unsigned long phase = 0; // 0 to 5;
  
+    // Read Pots:
     int pot1 = analogRead(A15);
     int pot2 = analogRead(A14);
-    
     controlContext.powerLevel = pot1/4;
     controlContext.delay_in_ms = 10 + pot2/2;
 
+    // Adjust power output:
 
-    currentTime = millis();
 
+
+    // Update display/debug:
     if ((currentTime - prevDispTime) > 400) {
         // Debug info...
         char buffer[200];
