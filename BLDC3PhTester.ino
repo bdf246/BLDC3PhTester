@@ -31,9 +31,19 @@ void setup() {
     Serial.begin(9600);
     Serial.println("Starting!!!");
 
-    for (int i=0; i<8; i++) {
-        pinMode(i+22,OUTPUT);
-    }
+    // for (int i=0; i<8; i++) {
+        // pinMode(i+22,OUTPUT);
+    // }
+
+    pinMode(50,OUTPUT);
+    pinMode(51,OUTPUT);
+    pinMode(52,OUTPUT);
+    pinMode(53,OUTPUT);
+    digitalWrite(50,LOW);
+    digitalWrite(51,HIGH);
+    digitalWrite(52,LOW);
+    digitalWrite(53,HIGH);
+
     lcd.begin (20,4);
     lcd.setBacklightPin(LCD_BACKLIGHT_PIN,POSITIVE);
     lcd.setBacklight(HIGH);
@@ -79,8 +89,19 @@ void UpdateDisplay(CONTROLCONTEXT_ST & controlContext) {
 
 void loop()
 {
-    static unsigned long currentTime = millis();
+    static unsigned long currentTime = 0;
     static unsigned long prevDispTime = 0;
+
+    static unsigned long phase = 0; // 0 to 5;
+ 
+    int pot1 = analogRead(A15);
+    int pot2 = analogRead(A14);
+    
+    controlContext.powerLevel = pot1/4;
+    controlContext.delay_in_ms = 10 + pot2/2;
+
+
+    currentTime = millis();
 
     if ((currentTime - prevDispTime) > 400) {
         // Debug info...
@@ -92,6 +113,6 @@ void loop()
         prevDispTime = currentTime;
     }
 
-    // delay(100);
+    delay(50);
 }
 
