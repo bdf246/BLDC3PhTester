@@ -8,7 +8,9 @@
 #define OUTPUT_PhaseB 7
 #define OUTPUT_PhaseC 8
 
-#define DISPLAY_UPDATE_FREQ_IN_MS 400
+#define DISPLAY_UPDATE_FREQ_IN_MS 300
+#define DISPLAY_BLANKINGIME_IN_MS 100 // For updating ~4 digits, blank them for this time before update.
+#define DISPLAY_UPDATE_DELAY_CHECK_IN_MS (DISPLAY_UPDATE_FREQ_IN_MS-DISPLAY_BLANKINGIME_IN_MS)
 
 // ----------------------------------------------------------------------
 // LCD Stuff
@@ -31,11 +33,11 @@ LiquidCrystal_I2C  lcd(LCD_I2C,LCD_En_pin,LCD_Rw_pin,LCD_Rs_pin,LCD_D4_pin,LCD_D
 typedef struct {
     int powerLevel;
     int delay_in_ms;
-    int curPhase;
+    int curPhase;       // 1 to 6
 } CONTROLCONTEXT_ST;
 
     
-static CONTROLCONTEXT_ST controlContext = {0, 500, 0};
+static CONTROLCONTEXT_ST controlContext = {0, 500, 1};
 // ----------------------------------------------------------------------
 
 
@@ -99,32 +101,72 @@ void lcdReset() {
     lcd.clear();
     lcd.home();
     lcd.setCursor(0,0);
-    sprintf(line, "Power:%4d [0-255]", controlContext.powerLevel);
+    sprintf(line, "Power:     [0-255]");
     lcd.print(line);
 
     lcd.setCursor(0,1);
-    sprintf(line, "Delay:%4d [ms]", controlContext.delay_in_ms);
+    sprintf(line, "Delay:     [ms]");
     lcd.print(line);
 
     lcd.setCursor(0,2);
-    sprintf(line, "Phase:%4d ", controlContext.curPhase);
+    sprintf(line, "Phase:     ");
     lcd.print(line);
 }
 
-void UpdateDisplay(CONTROLCONTEXT_ST & controlContext) {
+
+static CONTROLCONTEXT_ST dispPrevContext = controlContext;
+static CONTROLCONTEXT_ST dispPendingContext = controlContext;
+static bool pendingUpdate = false;
+
+// Blank out parts of display that need to change, then delay...
+void UpdateDisplayBlankValues(CONTROLCONTEXT_ST & newContext) {
+    char * text = "    ";
+
+    if (newContext.powerLevel != dispPrevContext.powerLevel) {
+        lcd.setCursor(6,0);
+        lcd.print(text);
+        pendingUpdate = true;
+    }
+
+    if (newContext.delay_in_ms != dispPrevContext.delay_in_ms) {
+        lcd.setCursor(6,1);
+        lcd.print(text);
+        pendingUpdate = true;
+    }
+
+    if (newContext.curPhase != dispPrevContext.curPhase) {
+        lcd.setCursor(6,2);
+        lcd.print(text);
+        pendingUpdate = true;
+    }
+
+    if (pendingUpdate) dispPendingContext = newContext;
+}
+
+// Update parts of display that have pending change...
+void UpdateDisplay() {
     char text[10];
 
-    lcd.setCursor(7,0);
-    sprintf(text, "%4d", controlContext.powerLevel);
-    lcd.print(text);
+    if (dispPendingContext.powerLevel != dispPrevContext.powerLevel) {
+        lcd.setCursor(6,0);
+        sprintf(text, "%4d", dispPendingContext.powerLevel);
+        lcd.print(text);
+    }
 
-    lcd.setCursor(7,1);
-    sprintf(text, "%4d", controlContext.delay_in_ms);
-    lcd.print(text);
+    if (dispPendingContext.delay_in_ms != dispPrevContext.delay_in_ms) {
+        lcd.setCursor(6,1);
+        sprintf(text, "%4d", dispPendingContext.delay_in_ms);
+        lcd.print(text);
+    }
 
-    lcd.setCursor(7,2);
-    sprintf(text, "%4d", controlContext.curPhase);
-    lcd.print(text);
+    if (dispPendingContext.curPhase != dispPrevContext.curPhase) {
+        lcd.setCursor(6,2);
+        sprintf(text, "%4d", dispPendingContext.curPhase);
+        lcd.print(text);
+    }
+
+    dispPrevContext = dispPendingContext;
+    pendingUpdate = false;
 }
 
 void loop()
@@ -141,8 +183,8 @@ void loop()
 
     // Adjust power output:
     if ((currentTime - prevPhaseTime) > controlContext.delay_in_ms) {
-        if (controlContext.curPhase < 5) controlContext.curPhase++;
-        else                             controlContext.curPhase = 0;
+        if (controlContext.curPhase < 6) controlContext.curPhase++;
+        else                             controlContext.curPhase = 1;
 
         digitalWrite(OUTPUT_PhaseA, controlContext.powerLevel);
 
@@ -150,16 +192,26 @@ void loop()
     }
 
     // Update display/debug:
-    if ((currentTime - prevDispTime) > DISPLAY_UPDATE_FREQ_IN_MS) {
-        // Debug info...
-        char buffer[200];
-        sprintf(buffer, "Power:%d, Delay:%d\n", controlContext.powerLevel, controlContext.delay_in_ms);
-        Serial.print(buffer);
-
-        UpdateDisplay(controlContext);
-        prevDispTime = currentTime;
+    if (pendingUpdate) {
+        // Write the pending update if delay has passed:
+        if ((currentTime - prevDispTime) > DISPLAY_BLANKINGIME_IN_MS) {
+            UpdateDisplay();
+            prevDispTime = currentTime;
+        }
     }
+    else {
+        // See if there is a change to get displayed:
+        if ((currentTime - prevDispTime) > DISPLAY_UPDATE_DELAY_CHECK_IN_MS) {
+            UpdateDisplayBlankValues(controlContext);
+            prevDispTime = currentTime;
+        }
+    }
+    
+    // Debug info...
+    // char buffer[200];
+    // sprintf(buffer, "Power:%d, Delay:%d\n", controlContext.powerLevel, controlContext.delay_in_ms);
+    // Serial.print(buffer);
 
-    delay(50);
+    delay(1);
 }
 
