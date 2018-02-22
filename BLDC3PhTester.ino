@@ -4,9 +4,16 @@
 // ----------------------------------------------------------------------
 // Defines:
 //
-#define OUTPUT_PhaseA 6
-#define OUTPUT_PhaseB 7
-#define OUTPUT_PhaseC 8
+//
+
+// BOT is PWD, TOP is On or Off
+
+#define OUTPUT_PhaseA_BOT 6
+#define OUTPUT_PhaseB_BOT 7
+#define OUTPUT_PhaseC_BOT 8
+#define OUTPUT_PhaseA_TOP 9
+#define OUTPUT_PhaseB_TOP 10
+#define OUTPUT_PhaseC_TOP 11
 
 #define DISPLAY_UPDATE_FREQ_IN_MS 200
 #define DISPLAY_BLANKINGIME_IN_MS 60 // For updating ~4 digits, blank them for this time before update.
@@ -64,9 +71,18 @@ void setup() {
 
 
     // Setup PWM outputs:
-    pinMode(OUTPUT_PhaseA, OUTPUT);
-    pinMode(OUTPUT_PhaseB, OUTPUT);
-    pinMode(OUTPUT_PhaseC, OUTPUT);
+    pinMode(OUTPUT_PhaseA_TOP, OUTPUT);
+    pinMode(OUTPUT_PhaseB_TOP, OUTPUT);
+    pinMode(OUTPUT_PhaseC_TOP, OUTPUT);
+    pinMode(OUTPUT_PhaseA_BOT, OUTPUT);
+    pinMode(OUTPUT_PhaseB_BOT, OUTPUT);
+    pinMode(OUTPUT_PhaseC_BOT, OUTPUT);
+    digitalWrite(OUTPUT_PhaseA_TOP, LOW);
+    digitalWrite(OUTPUT_PhaseB_TOP, LOW);
+    digitalWrite(OUTPUT_PhaseC_TOP, LOW);
+    analogWrite(OUTPUT_PhaseA_BOT, 0);
+    analogWrite(OUTPUT_PhaseB_BOT, 0);
+    analogWrite(OUTPUT_PhaseC_BOT, 0);
 
     // Setup POT outputs:
     pinMode(50,OUTPUT);
@@ -181,12 +197,52 @@ void loop()
     controlContext.powerLevel = pot1/4;
     controlContext.delay_in_ms = 10 + pot2*2;
 
+
     // Adjust power output:
     if ((currentTime - prevPhaseTime) > controlContext.delay_in_ms) {
         if (controlContext.curPhase < 6) controlContext.curPhase++;
         else                             controlContext.curPhase = 1;
 
-        digitalWrite(OUTPUT_PhaseA, controlContext.powerLevel);
+        // Sequence is:
+        //   1) A_TOP, C_BOT
+        //   2) B_TOP, C_BOT
+        //   3) B_TOP, A_BOT
+        //   4) C_TOP, A_BOT
+        //   5) C_TOP, B_BOT
+        //   6) A_TOP, B_BOT
+
+        switch(controlContext.curPhase) {
+        case 1:
+            analogWrite (OUTPUT_PhaseB_BOT, 0);
+            delay(1);
+            analogWrite (OUTPUT_PhaseC_BOT, controlContext.powerLevel);
+            break;
+        case 2:
+            digitalWrite(OUTPUT_PhaseA_TOP, LOW);
+            delay(1);
+            digitalWrite(OUTPUT_PhaseB_TOP, HIGH);
+            break;
+        case 3:
+            analogWrite (OUTPUT_PhaseC_BOT, 0);
+            delay(1);
+            analogWrite (OUTPUT_PhaseA_BOT, controlContext.powerLevel);
+            break;
+        case 4:
+            digitalWrite(OUTPUT_PhaseB_TOP, LOW);
+            delay(1);
+            digitalWrite(OUTPUT_PhaseC_TOP, HIGH);
+            break;
+        case 5:
+            analogWrite (OUTPUT_PhaseA_BOT, 0);
+            delay(1);
+            analogWrite (OUTPUT_PhaseB_BOT, controlContext.powerLevel);
+            break;
+        case 6:
+            digitalWrite(OUTPUT_PhaseC_TOP, LOW);
+            delay(1);
+            digitalWrite(OUTPUT_PhaseA_TOP, HIGH);
+            break;
+        }
 
         prevPhaseTime = currentTime;
     }
