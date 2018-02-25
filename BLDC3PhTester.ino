@@ -246,6 +246,23 @@ void loop()
 
         prevPhaseTime = currentTime;
     }
+    else {
+        // Adjust power level immidiately 
+        switch(controlContext.curPhase) {
+        case 1:
+        case 2:
+            analogWrite (OUTPUT_PhaseC_BOT, controlContext.powerLevel);
+            break;
+        case 3:
+        case 4:
+            analogWrite (OUTPUT_PhaseA_BOT, controlContext.powerLevel);
+            break;
+        case 5:
+        case 6:
+            analogWrite (OUTPUT_PhaseB_BOT, controlContext.powerLevel);
+            break;
+        }
+    }
 
     // Update display/debug:
     if (pendingUpdate) {
