@@ -77,9 +77,9 @@ void setup() {
     pinMode(OUTPUT_PhaseA_BOT, OUTPUT);
     pinMode(OUTPUT_PhaseB_BOT, OUTPUT);
     pinMode(OUTPUT_PhaseC_BOT, OUTPUT);
-    digitalWrite(OUTPUT_PhaseA_TOP, LOW);
-    digitalWrite(OUTPUT_PhaseB_TOP, LOW);
-    digitalWrite(OUTPUT_PhaseC_TOP, LOW);
+    digitalWrite(OUTPUT_PhaseA_TOP, HIGH);
+    digitalWrite(OUTPUT_PhaseB_TOP, HIGH);
+    digitalWrite(OUTPUT_PhaseC_TOP, HIGH);
     analogWrite(OUTPUT_PhaseA_BOT, 0);
     analogWrite(OUTPUT_PhaseB_BOT, 0);
     analogWrite(OUTPUT_PhaseC_BOT, 0);
@@ -218,9 +218,9 @@ void loop()
             analogWrite (OUTPUT_PhaseC_BOT, controlContext.powerLevel);
             break;
         case 2:
-            digitalWrite(OUTPUT_PhaseA_TOP, LOW);
+            digitalWrite(OUTPUT_PhaseA_TOP, HIGH);
             delay(1);
-            digitalWrite(OUTPUT_PhaseB_TOP, HIGH);
+            digitalWrite(OUTPUT_PhaseB_TOP, LOW);
             break;
         case 3:
             analogWrite (OUTPUT_PhaseC_BOT, 0);
@@ -228,9 +228,9 @@ void loop()
             analogWrite (OUTPUT_PhaseA_BOT, controlContext.powerLevel);
             break;
         case 4:
-            digitalWrite(OUTPUT_PhaseB_TOP, LOW);
+            digitalWrite(OUTPUT_PhaseB_TOP, HIGH);
             delay(1);
-            digitalWrite(OUTPUT_PhaseC_TOP, HIGH);
+            digitalWrite(OUTPUT_PhaseC_TOP, LOW);
             break;
         case 5:
             analogWrite (OUTPUT_PhaseA_BOT, 0);
@@ -238,9 +238,9 @@ void loop()
             analogWrite (OUTPUT_PhaseB_BOT, controlContext.powerLevel);
             break;
         case 6:
-            digitalWrite(OUTPUT_PhaseC_TOP, LOW);
+            digitalWrite(OUTPUT_PhaseC_TOP, HIGH);
             delay(1);
-            digitalWrite(OUTPUT_PhaseA_TOP, HIGH);
+            digitalWrite(OUTPUT_PhaseA_TOP, LOW);
             break;
         }
 
