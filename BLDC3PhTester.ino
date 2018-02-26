@@ -50,6 +50,7 @@ static CONTROLCONTEXT_ST controlContext = {0, 500, 1};
 
 void setup() {
 
+#if 0
     // From: https://forum.arduino.cc/index.php?topic=153645.0
     // Code for pins 9 and 10 to output at 20 kHz:
     // TCCR2B &= ~ _BV (CS22); // cancel pre-scaler of 64
@@ -64,6 +65,7 @@ void setup() {
     TCCR4B |= _BV (CS20);   // no pre-scaler - Freq: 31.37 kHz
     // analogWrite (9, 50);    // 19.6 % duty cycle
     // analogWrite (10, 200);  // 78.4 % duty cycle
+#endif
     
     // Debug:
     Serial.begin(9600);
