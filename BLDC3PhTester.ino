@@ -49,23 +49,15 @@ static CONTROLCONTEXT_ST controlContext = {0, 500, 1};
 
 
 void setup() {
-
-#if 0
-    // From: https://forum.arduino.cc/index.php?topic=153645.0
-    // Code for pins 9 and 10 to output at 20 kHz:
-    // TCCR2B &= ~ _BV (CS22); // cancel pre-scaler of 64
-    // TCCR2B |= _BV (CS21);   // use pre-scaler of 8 - Freq 20 kHz
-    // TCCR2B |= _BV (CS20);   // no pre-scaler - Freq: 31.37 kHz
-    // analogWrite (9, 50);    // 19.6 % duty cycle
-    // analogWrite (10, 200);  // 78.4 % duty cycle
-
-    // Code for pins 6, 7, 8
-    TCCR4B &= ~ _BV (CS22); // cancel pre-scaler of 64
-    // TCCR4B |= _BV (CS21);   // use pre-scaler of 8 - Freq 20 kHz
-    TCCR4B |= _BV (CS20);   // no pre-scaler - Freq: 31.37 kHz
-    // analogWrite (9, 50);    // 19.6 % duty cycle
-    // analogWrite (10, 200);  // 78.4 % duty cycle
-#endif
+    // ----------------------------------------------------------------------
+    // Change the frequency of the PWM output for pins 6, 7, and 8.
+    // These pins are controlled byt the TCCR4 clock and the frequency is configurable
+    // using its register: TCCR4B - Timer/Counter 4 Control Register B
+    // The bits of interest are 2, 1, 0 which are defined as CS42, CS41, CS40 respectively.
+    // The value to have no pre-scaler for these bits is 001.
+    // A test showed this resulted in 32kHz.
+    TCCR4B = (TCCR4B & 0b11111000) | 0x01;
+    // ----------------------------------------------------------------------
     
     // Debug:
     Serial.begin(9600);
