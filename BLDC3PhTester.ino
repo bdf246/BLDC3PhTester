@@ -230,9 +230,9 @@ void loop()
 
     // Adjust power output:
     if ((currentTime - prevPhaseTime) > controlContext.delay_in_ms) {
-        // if (controlContext.curPhase < 6) controlContext.curPhase++;
-        // else                             controlContext.curPhase = 1;
-        controlContext.curPhase = 3;
+        if (controlContext.curPhase < 6) controlContext.curPhase++;
+        else                             controlContext.curPhase = 1;
+        // controlContext.curPhase = 3;
 
         // Sequence is:
         //   1) A_TOP, C_BOT
