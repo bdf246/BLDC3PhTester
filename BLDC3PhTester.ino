@@ -47,10 +47,36 @@ typedef struct {
 static CONTROLCONTEXT_ST controlContext = {0, 500, 1};
 // ----------------------------------------------------------------------
 
+/* Code to pulse pin 3 with a modulated signal
+* Can be used to drive an IR LED to keep a TSOP IR reciever happy
+* This allows you to use a modulated reciever and a continious beam detector
+* By Mike Cook Nov 2011 - Released under the Open Source licence
+*/
+volatile byte pulse = 0;
+
+ISR(TIMER2_COMPB_vect){  // Interrupt service routine to pulse the modulated pin 3
+   pulse++;
+ if(pulse >= 8) { // change number for number of modulation cycles in a pulse
+   pulse =0;
+   TCCR2A ^= _BV(COM2B1); // toggle pin 3 enable, turning the pin on and off
+ }
+}
+
+void setIrModOutput(){  // sets pin 3 going at the IR modulation rate
+ pinMode(3, OUTPUT);
+ TCCR2A = _BV(COM2B1) | _BV(WGM21) | _BV(WGM20); // Just enable output on Pin 3 and disable it on Pin 11
+ TCCR2B = _BV(WGM22) | _BV(CS22);
+ OCR2A = 51; // defines the frequency 51 = 38.4 KHz, 54 = 36.2 KHz, 58 = 34 KHz, 62 = 32 KHz
+ OCR2B = 26;  // deines the duty cycle - Half the OCR2A value for 50%
+ TCCR2B = TCCR2B & 0b00111000 | 0x2; // select a prescale value of 8:1 of the system clock
+}
 
 void setup() {
 
-#if 0
+//setIrModOutput();
+//TIMSK2 = _BV(OCIE2B); // Output Compare Match B Interrupt Enable
+
+// #if 1
     // From: https://forum.arduino.cc/index.php?topic=153645.0
     // Code for pins 9 and 10 to output at 20 kHz:
     // TCCR2B &= ~ _BV (CS22); // cancel pre-scaler of 64
@@ -60,12 +86,14 @@ void setup() {
     // analogWrite (10, 200);  // 78.4 % duty cycle
 
     // Code for pins 6, 7, 8
-    TCCR4B &= ~ _BV (CS22); // cancel pre-scaler of 64
+    //TCCR4B &= ~ _BV (CS22); // cancel pre-scaler of 64
     // TCCR4B |= _BV (CS21);   // use pre-scaler of 8 - Freq 20 kHz
-    TCCR4B |= _BV (CS20);   // no pre-scaler - Freq: 31.37 kHz
+    //TCCR4B |= _BV (CS20);   // no pre-scaler - Freq: 31.37 kHz
     // analogWrite (9, 50);    // 19.6 % duty cycle
     // analogWrite (10, 200);  // 78.4 % duty cycle
-#endif
+// #endif
+    
+    TCCR4B = TCCR4B & 0b11111000 | 0x01;
     
     // Debug:
     Serial.begin(9600);
@@ -197,13 +225,14 @@ void loop()
     int pot1 = analogRead(A15);
     int pot2 = analogRead(A14);
     controlContext.powerLevel = pot1/4;
-    controlContext.delay_in_ms = 10 + pot2*2;
+    controlContext.delay_in_ms = 1 + pot2*2;
 
 
     // Adjust power output:
     if ((currentTime - prevPhaseTime) > controlContext.delay_in_ms) {
-        if (controlContext.curPhase < 6) controlContext.curPhase++;
-        else                             controlContext.curPhase = 1;
+        // if (controlContext.curPhase < 6) controlContext.curPhase++;
+        // else                             controlContext.curPhase = 1;
+        controlContext.curPhase = 3;
 
         // Sequence is:
         //   1) A_TOP, C_BOT
@@ -287,6 +316,6 @@ void loop()
     // sprintf(buffer, "Power:%d, Delay:%d\n", controlContext.powerLevel, controlContext.delay_in_ms);
     // Serial.print(buffer);
 
-    delay(1);
+    // delay(1);
 }
 
