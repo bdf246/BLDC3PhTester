@@ -222,10 +222,11 @@ void loop()
     static unsigned long prevPhaseTime = 0;
  
     // Read Pots:
-    int pot1 = analogRead(A15);
-    int pot2 = analogRead(A14);
+    long pot1 = analogRead(A15);
+    long pot2 = analogRead(A14);
     controlContext.powerLevel = pot1/4;
-    controlContext.delay_in_ms = 1 + pot2*2;
+    // controlContext.delay_in_ms = 1 + pot2*2;
+    controlContext.delay_in_ms = 1 + pot2*pot2/500;
 
 
     // Adjust power output:
@@ -245,32 +246,32 @@ void loop()
         switch(controlContext.curPhase) {
         case 1:
             analogWrite (OUTPUT_PhaseB_BOT, 0);
-            delay(1);
+            // delay(1);
             analogWrite (OUTPUT_PhaseC_BOT, controlContext.powerLevel);
             break;
         case 2:
             digitalWrite(OUTPUT_PhaseA_TOP, HIGH);
-            delay(1);
+            // delay(1);
             digitalWrite(OUTPUT_PhaseB_TOP, LOW);
             break;
         case 3:
             analogWrite (OUTPUT_PhaseC_BOT, 0);
-            delay(1);
+            // delay(1);
             analogWrite (OUTPUT_PhaseA_BOT, controlContext.powerLevel);
             break;
         case 4:
             digitalWrite(OUTPUT_PhaseB_TOP, HIGH);
-            delay(1);
+            // delay(1);
             digitalWrite(OUTPUT_PhaseC_TOP, LOW);
             break;
         case 5:
             analogWrite (OUTPUT_PhaseA_BOT, 0);
-            delay(1);
+            // delay(1);
             analogWrite (OUTPUT_PhaseB_BOT, controlContext.powerLevel);
             break;
         case 6:
             digitalWrite(OUTPUT_PhaseC_TOP, HIGH);
-            delay(1);
+            // delay(1);
             digitalWrite(OUTPUT_PhaseA_TOP, LOW);
             break;
         }
