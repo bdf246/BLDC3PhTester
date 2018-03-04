@@ -15,8 +15,8 @@
 #define OUTPUT_PhaseB_TOP 10
 #define OUTPUT_PhaseC_TOP 11
 
-#define DISPLAY_UPDATE_FREQ_IN_MS 200
-#define DISPLAY_BLANKINGIME_IN_MS 60 // For updating ~4 digits, blank them for this time before update.
+#define DISPLAY_UPDATE_FREQ_IN_MS 1000000
+#define DISPLAY_BLANKINGIME_IN_MS 60000 // For updating ~4 digits, blank them for this time before update.
 #define DISPLAY_UPDATE_DELAY_CHECK_IN_MS (DISPLAY_UPDATE_FREQ_IN_MS-DISPLAY_BLANKINGIME_IN_MS)
 
 // ----------------------------------------------------------------------
@@ -38,9 +38,9 @@ LiquidCrystal_I2C  lcd(LCD_I2C,LCD_En_pin,LCD_Rw_pin,LCD_Rs_pin,LCD_D4_pin,LCD_D
 // Main Logic Data Structures:
 
 typedef struct {
-    int powerLevel;
-    int delay_in_ms;
-    int curPhase;       // 1 to 6
+    long powerLevel;
+    long delay_in_ms;
+    long curPhase;       // 1 to 6
 } CONTROLCONTEXT_ST;
 
     
@@ -180,11 +180,11 @@ void UpdateDisplayBlankValues(CONTROLCONTEXT_ST & newContext) {
         pendingUpdate = true;
     }
 
-    if (newContext.curPhase != dispPrevContext.curPhase) {
-        lcd.setCursor(6,2);
-        lcd.print(text);
-        pendingUpdate = true;
-    }
+    // if (newContext.curPhase != dispPrevContext.curPhase) {
+        // lcd.setCursor(6,2);
+        // lcd.print(text);
+        // pendingUpdate = true;
+    // }
 
     if (pendingUpdate) dispPendingContext = newContext;
 }
@@ -201,15 +201,15 @@ void UpdateDisplay() {
 
     if (dispPendingContext.delay_in_ms != dispPrevContext.delay_in_ms) {
         lcd.setCursor(6,1);
-        sprintf(text, "%4d", dispPendingContext.delay_in_ms);
+        sprintf(text, "%4d", dispPendingContext.delay_in_ms/1000);
         lcd.print(text);
     }
 
-    if (dispPendingContext.curPhase != dispPrevContext.curPhase) {
-        lcd.setCursor(6,2);
-        sprintf(text, "%4d", dispPendingContext.curPhase);
-        lcd.print(text);
-    }
+    // if (dispPendingContext.curPhase != dispPrevContext.curPhase) {
+        // lcd.setCursor(6,2);
+        // sprintf(text, "%4d", dispPendingContext.curPhase);
+        // lcd.print(text);
+    // }
 
     dispPrevContext = dispPendingContext;
     pendingUpdate = false;
@@ -217,20 +217,31 @@ void UpdateDisplay() {
 
 void loop()
 {
-    unsigned long currentTime = millis();
+    // unsigned long currentTime = millis();
+    unsigned long currentTime = micros();
     static unsigned long prevDispTime = 0;
     static unsigned long prevPhaseTime = 0;
+    static unsigned long prevReadTime = 0;
+
+    long pot1;
+    long pot2;
  
     // Read Pots:
-    long pot1 = analogRead(A15);
-    long pot2 = analogRead(A14);
-    controlContext.powerLevel = pot1/4;
-    // controlContext.delay_in_ms = 1 + pot2*2;
-    controlContext.delay_in_ms = 1 + pot2*pot2/500;
+    if ((currentTime - prevReadTime) == 10000) {
+        pot1 = analogRead(A15);
+        controlContext.powerLevel = pot1/4;
+    }
+    else if ((currentTime - prevReadTime) > 20000) {
+        pot2 = analogRead(A14);
+        // controlContext.delay_in_ms = 1 + pot2*2;
+        controlContext.delay_in_ms = (1 + pot2*pot2/500)*1000;
+
+        prevReadTime = currentTime;
+    }
 
 
     // Adjust power output:
-    if ((currentTime - prevPhaseTime) > controlContext.delay_in_ms) {
+    if ((currentTime - prevPhaseTime) > (controlContext.delay_in_ms)) {
         if (controlContext.curPhase < 6) controlContext.curPhase++;
         else                             controlContext.curPhase = 1;
         // controlContext.curPhase = 3;
@@ -296,19 +307,21 @@ void loop()
         }
     }
 
-    // Update display/debug:
-    if (pendingUpdate) {
-        // Write the pending update if delay has passed:
-        if ((currentTime - prevDispTime) > DISPLAY_BLANKINGIME_IN_MS) {
-            UpdateDisplay();
-            prevDispTime = currentTime;
+    if (controlContext.delay_in_ms > 3000) {
+        // Update display/debug:
+        if (pendingUpdate) {
+            // Write the pending update if delay has passed:
+            if ((currentTime - prevDispTime) > (DISPLAY_BLANKINGIME_IN_MS)) {
+                UpdateDisplay();
+                prevDispTime = currentTime;
+            }
         }
-    }
-    else {
-        // See if there is a change to get displayed:
-        if ((currentTime - prevDispTime) > DISPLAY_UPDATE_DELAY_CHECK_IN_MS) {
-            UpdateDisplayBlankValues(controlContext);
-            prevDispTime = currentTime;
+        else {
+            // See if there is a change to get displayed:
+            if ((currentTime - prevDispTime) > (DISPLAY_UPDATE_DELAY_CHECK_IN_MS)) {
+                UpdateDisplayBlankValues(controlContext);
+                prevDispTime = currentTime;
+            }
         }
     }
     
