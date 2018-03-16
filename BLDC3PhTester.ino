@@ -1,6 +1,9 @@
 #include <LCD.h>
 #include <LiquidCrystal_I2C.h>
 
+ 
+#include "TimerOne.h"
+ 
 // ----------------------------------------------------------------------
 // Defines:
 //
@@ -38,13 +41,18 @@ LiquidCrystal_I2C  lcd(LCD_I2C,LCD_En_pin,LCD_Rw_pin,LCD_Rs_pin,LCD_D4_pin,LCD_D
 // Main Logic Data Structures:
 
 typedef struct {
-    int powerLevel;
-    int delay_in_ms;
-    int curPhase;       // 1 to 6
+    int  powerLevel;
+    long delay_in_ms;
+    int  curPhase;       // 1 to 6
 } CONTROLCONTEXT_ST;
 
     
 static CONTROLCONTEXT_ST controlContext = {0, 500, 1};
+
+
+static long prevPeriod = controlContext.delay_in_ms * 1000;
+static int  prevPowerLevel = controlContext.powerLevel;
+
 // ----------------------------------------------------------------------
 
 
@@ -98,6 +106,10 @@ void setup() {
     lcd.print("Initializing..."); 
     delay(3000);
     lcdReset();
+
+    Timer1.initialize(controlContext.delay_in_ms);         // initialize timer1, and set a 1/2 second period
+    Timer1.attachInterrupt(timer_callback);  // attaches timer_callback() as a timer overflow interrupt
+ 
 }
 
 void lcdReset() {
@@ -179,62 +191,87 @@ void UpdateDisplay() {
     pendingUpdate = false;
 }
 
+void adjustOutputs() {
+
+    if (controlContext.curPhase < 6) controlContext.curPhase++;
+    else                             controlContext.curPhase = 1;
+
+    // Sequence is:
+    //   1) A_TOP, C_BOT
+    //   2) B_TOP, C_BOT
+    //   3) B_TOP, A_BOT
+    //   4) C_TOP, A_BOT
+    //   5) C_TOP, B_BOT
+    //   6) A_TOP, B_BOT
+
+    switch(controlContext.curPhase) {
+    case 1:
+        analogWrite (OUTPUT_PhaseB_BOT, 0);
+        analogWrite (OUTPUT_PhaseC_BOT, controlContext.powerLevel);
+        break;
+    case 2:
+        digitalWrite(OUTPUT_PhaseA_TOP, HIGH);
+        digitalWrite(OUTPUT_PhaseB_TOP, LOW);
+        break;
+    case 3:
+        analogWrite (OUTPUT_PhaseC_BOT, 0);
+        analogWrite (OUTPUT_PhaseA_BOT, controlContext.powerLevel);
+        break;
+    case 4:
+        digitalWrite(OUTPUT_PhaseB_TOP, HIGH);
+        digitalWrite(OUTPUT_PhaseC_TOP, LOW);
+        break;
+    case 5:
+        analogWrite (OUTPUT_PhaseA_BOT, 0);
+        analogWrite (OUTPUT_PhaseB_BOT, controlContext.powerLevel);
+        break;
+    case 6:
+        digitalWrite(OUTPUT_PhaseC_TOP, HIGH);
+        digitalWrite(OUTPUT_PhaseA_TOP, LOW);
+        break;
+    }
+
+    return;
+}
+
+
+void timer_callback()
+{
+    adjustOutputs();
+
+    long newDelay_in_us = controlContext.delay_in_ms * 1000;
+
+    // Adjust period if needed:
+    if (prevPeriod != newDelay_in_us) {
+        Timer1.setPeriod(newDelay_in_us);
+        prevPeriod = newDelay_in_us;
+    }
+}
+ 
+
 void loop()
 {
     unsigned long currentTime = millis();
+    static unsigned long prevReadTime = 0;
     static unsigned long prevDispTime = 0;
     static unsigned long prevPhaseTime = 0;
  
     // Read Pots:
-    long pot1 = analogRead(A15);
-    long pot2 = analogRead(A14);
-    controlContext.powerLevel = pot1/4;
-    controlContext.delay_in_ms = 1 + pot2*pot2/500;
+    long pot1 = 0;
+    long pot2 = 0;
 
-    // Adjust power output:
-    if ((currentTime - prevPhaseTime) > controlContext.delay_in_ms) {
-        if (controlContext.curPhase < 6) controlContext.curPhase++;
-        else                             controlContext.curPhase = 1;
-
-        // Sequence is:
-        //   1) A_TOP, C_BOT
-        //   2) B_TOP, C_BOT
-        //   3) B_TOP, A_BOT
-        //   4) C_TOP, A_BOT
-        //   5) C_TOP, B_BOT
-        //   6) A_TOP, B_BOT
-
-        switch(controlContext.curPhase) {
-        case 1:
-            analogWrite (OUTPUT_PhaseB_BOT, 0);
-            analogWrite (OUTPUT_PhaseC_BOT, controlContext.powerLevel);
-            break;
-        case 2:
-            digitalWrite(OUTPUT_PhaseA_TOP, HIGH);
-            digitalWrite(OUTPUT_PhaseB_TOP, LOW);
-            break;
-        case 3:
-            analogWrite (OUTPUT_PhaseC_BOT, 0);
-            analogWrite (OUTPUT_PhaseA_BOT, controlContext.powerLevel);
-            break;
-        case 4:
-            digitalWrite(OUTPUT_PhaseB_TOP, HIGH);
-            digitalWrite(OUTPUT_PhaseC_TOP, LOW);
-            break;
-        case 5:
-            analogWrite (OUTPUT_PhaseA_BOT, 0);
-            analogWrite (OUTPUT_PhaseB_BOT, controlContext.powerLevel);
-            break;
-        case 6:
-            digitalWrite(OUTPUT_PhaseC_TOP, HIGH);
-            digitalWrite(OUTPUT_PhaseA_TOP, LOW);
-            break;
-        }
-
-        prevPhaseTime = currentTime;
+    if ((currentTime - prevReadTime) == 100) {
+        pot1 = analogRead(A15);
+        controlContext.powerLevel = pot1/4;
     }
-    else {
-        // Adjust power level immidiately 
+    else if ((currentTime - prevReadTime) > 200) {
+        pot2 = analogRead(A14);
+        controlContext.delay_in_ms = 1 + pot2*pot2/500;
+        prevReadTime = currentTime;
+    }
+
+    if (prevPowerLevel != controlContext.powerLevel) {
+        noInterrupts();
         switch(controlContext.curPhase) {
         case 1:
         case 2:
@@ -249,6 +286,9 @@ void loop()
             analogWrite (OUTPUT_PhaseB_BOT, controlContext.powerLevel);
             break;
         }
+        interrupts();
+
+        prevPowerLevel = controlContext.powerLevel;
     }
 
     // Update display/debug:
