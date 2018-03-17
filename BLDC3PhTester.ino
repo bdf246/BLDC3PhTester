@@ -113,7 +113,7 @@ void setup() {
     delay(3000);
     lcdReset();
 
-    Timer1.initialize(controlContext.delay_in_us);         // initialize timer1, and set a 1/2 second period
+    Timer1.initialize(controlContext.delay_in_us/lookupSize);         // initialize timer1, and set a 1/2 second period
     Timer1.attachInterrupt(timer_callback);  // attaches timer_callback() as a timer overflow interrupt
  
 }
@@ -203,6 +203,7 @@ void UpdateDisplay() {
 }
 
 void adjustOutputs() {
+    long curPower = controlContext.powerLevel * sinLookup[lookupIdx] / 255;
 
     if (controlContext.curPhase < 6) controlContext.curPhase++;
     else                             controlContext.curPhase = 1;
@@ -218,7 +219,7 @@ void adjustOutputs() {
     switch(controlContext.curPhase) {
     case 1:
         analogWrite (OUTPUT_PhaseB_BOT, 0);
-        analogWrite (OUTPUT_PhaseC_BOT, controlContext.powerLevel);
+        analogWrite (OUTPUT_PhaseC_BOT, curPower);
         break;
     case 2:
         digitalWrite(OUTPUT_PhaseA_TOP, HIGH);
@@ -226,7 +227,7 @@ void adjustOutputs() {
         break;
     case 3:
         analogWrite (OUTPUT_PhaseC_BOT, 0);
-        analogWrite (OUTPUT_PhaseA_BOT, controlContext.powerLevel);
+        analogWrite (OUTPUT_PhaseA_BOT, curPower);
         break;
     case 4:
         digitalWrite(OUTPUT_PhaseB_TOP, HIGH);
@@ -234,7 +235,7 @@ void adjustOutputs() {
         break;
     case 5:
         analogWrite (OUTPUT_PhaseA_BOT, 0);
-        analogWrite (OUTPUT_PhaseB_BOT, controlContext.powerLevel);
+        analogWrite (OUTPUT_PhaseB_BOT, curPower);
         break;
     case 6:
         digitalWrite(OUTPUT_PhaseC_TOP, HIGH);
@@ -248,17 +249,44 @@ void adjustOutputs() {
 
 void timer_callback()
 {
-    adjustOutputs();
+    lookupIdx++;
 
-    long newDelay_in_us = controlContext.delay_in_us;
+    if (lookupIdx == lookupSize) {
+        lookupIdx = 0;
+        adjustOutputs();
+    }
+    else {
+        // Adjust power for new sin index:
+        adjustPower();
+    }
 
     // Adjust period if needed:
-    if (prevDelay_in_us != newDelay_in_us) {
-        Timer1.setPeriod(newDelay_in_us);
-        prevDelay_in_us = newDelay_in_us;
+    if (prevDelay_in_us != controlContext.delay_in_us) {
+        Timer1.setPeriod(controlContext.delay_in_us/lookupSize);
+        prevDelay_in_us = controlContext.delay_in_us;
     }
 }
  
+void adjustPower() {
+    long curPower = controlContext.powerLevel * sinLookup[lookupIdx] / 255;
+    switch(controlContext.curPhase) {
+    case 1:
+    case 2:
+        analogWrite (OUTPUT_PhaseC_BOT, curPower);
+        break;
+    case 3:
+    case 4:
+        analogWrite (OUTPUT_PhaseA_BOT, curPower);
+        break;
+    case 5:
+    case 6:
+        analogWrite (OUTPUT_PhaseB_BOT, curPower);
+        break;
+    }
+
+    return;
+}
+
 
 void loop()
 {
@@ -283,22 +311,8 @@ void loop()
 
     if (prevPowerLevel != controlContext.powerLevel) {
         noInterrupts();
-        switch(controlContext.curPhase) {
-        case 1:
-        case 2:
-            analogWrite (OUTPUT_PhaseC_BOT, controlContext.powerLevel);
-            break;
-        case 3:
-        case 4:
-            analogWrite (OUTPUT_PhaseA_BOT, controlContext.powerLevel);
-            break;
-        case 5:
-        case 6:
-            analogWrite (OUTPUT_PhaseB_BOT, controlContext.powerLevel);
-            break;
-        }
+        adjustPower();
         interrupts();
-
         prevPowerLevel = controlContext.powerLevel;
     }
 
