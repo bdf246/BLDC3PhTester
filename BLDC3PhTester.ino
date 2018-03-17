@@ -261,11 +261,11 @@ void loop()
     long pot2 = 0;
 
     if ((currentTime - prevReadTime) == 100) {
-        pot1 = analogRead(A15);
+        pot1 = 1023 - analogRead(A15);
         controlContext.powerLevel = pot1/4;
     }
     else if ((currentTime - prevReadTime) > 200) {
-        pot2 = analogRead(A14);
+        pot2 = 1023 - analogRead(A14);
         controlContext.delay_in_ms = 1 + pot2*pot2/500;
         prevReadTime = currentTime;
     }
