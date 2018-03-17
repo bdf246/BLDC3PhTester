@@ -53,6 +53,11 @@ static CONTROLCONTEXT_ST controlContext = {0, 500, 1};
 static long prevPeriod = controlContext.delay_in_ms * 1000;
 static int  prevPowerLevel = controlContext.powerLevel;
 
+// 180/5 = 36 entries:
+static char sinLookup[] = {0, 22, 44, 66, 87, 108, 128, 146, 164, 180, 195, 209, 221, 231, 240, 246, 251, 254, 255, 254, 251, 246, 240, 231, 221, 209, 195, 180, 164, 146, 128, 108, 87, 66, 44, 22 };
+static int lookupSize = sizeof(sinLookup);
+
+
 // ----------------------------------------------------------------------
 
 
