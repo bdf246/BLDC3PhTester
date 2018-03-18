@@ -58,6 +58,10 @@ static char sinLookup[] = {0, 22, 44, 66, 87, 108, 128, 146, 164, 180, 195, 209,
 static int lookupSize = sizeof(sinLookup);
 static int lookupIdx = 0;
 
+static long minDelay_in_us = 50;
+static long loopCounter = 0;
+static long prevLoopCounter = 0;
+static long intCounter = 0;
 
 // ----------------------------------------------------------------------
 
@@ -249,6 +253,18 @@ void adjustOutputs() {
 
 void timer_callback()
 {
+    // Check for interrupt lockout every 100 interrupts:
+    if (intCounter++ > 100) {
+        if (loopCounter == prevLoopCounter) {
+            minDelay_in_us += 100;
+            if (controlContext.delay_in_us < minDelay_in_us) {
+                controlContext.delay_in_us = minDelay_in_us;
+            }
+        }
+        prevLoopCounter = loopCounter;
+        intCounter = 0;
+    }
+
     lookupIdx++;
 
     if (lookupIdx == lookupSize) {
@@ -290,6 +306,8 @@ void adjustPower() {
 
 void loop()
 {
+    loopCounter++;
+
     unsigned long currentTime = millis();
     static unsigned long prevReadTime = 0;
     static unsigned long prevDispTime = 0;
@@ -306,6 +324,9 @@ void loop()
     else if ((currentTime - prevReadTime) > 200) {
         pot2 = 1023 - analogRead(A14);
         controlContext.delay_in_us = 1 + pot2*pot2*2;
+        if (controlContext.delay_in_us < minDelay_in_us) {
+            controlContext.delay_in_us = minDelay_in_us;
+        }
         prevReadTime = currentTime;
     }
 
