@@ -58,7 +58,7 @@ static char sinLookup[] = {0, 22, 44, 66, 87, 108, 128, 146, 164, 180, 195, 209,
 static int lookupSize = sizeof(sinLookup);
 static int lookupIdx = 0;
 
-static long minDelay_in_us = 50;
+static long minDelay_in_us = 3000;
 static long loopCounter = 0;
 static long prevLoopCounter = 0;
 static long intCounter = 0;
@@ -254,16 +254,16 @@ void adjustOutputs() {
 void timer_callback()
 {
     // Check for interrupt lockout every 100 interrupts:
-    if (intCounter++ > 100) {
-        if (loopCounter == prevLoopCounter) {
-            minDelay_in_us += 100;
-            if (controlContext.delay_in_us < minDelay_in_us) {
-                controlContext.delay_in_us = minDelay_in_us;
-            }
-        }
-        prevLoopCounter = loopCounter;
-        intCounter = 0;
-    }
+    // if (intCounter++ > 100) {
+        // if (loopCounter == prevLoopCounter) {
+            // minDelay_in_us += 100;
+            // if (controlContext.delay_in_us < minDelay_in_us) {
+                // controlContext.delay_in_us = minDelay_in_us;
+            // }
+        // }
+        // prevLoopCounter = loopCounter;
+        // intCounter = 0;
+    // }
 
     lookupIdx++;
 
