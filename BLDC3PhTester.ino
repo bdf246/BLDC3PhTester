@@ -41,7 +41,7 @@ LiquidCrystal_I2C  lcd(LCD_I2C,LCD_En_pin,LCD_Rw_pin,LCD_Rs_pin,LCD_D4_pin,LCD_D
 // Main Logic Data Structures:
 
 typedef struct {
-    long  powerLevel;
+    int  powerLevel;
     long delay_in_us;
     int  curPhase;       // 1 to 6
 } CONTROLCONTEXT_ST;
@@ -51,10 +51,10 @@ static CONTROLCONTEXT_ST controlContext = {0, 500000, 1};
 
 
 static long prevDelay_in_us = controlContext.delay_in_us;
-static long  prevPowerLevel = controlContext.powerLevel;
+static int  prevPowerLevel = controlContext.powerLevel;
 
 // 180/5 = 36 entries:
-static long sinLookup[] = {0, 22, 44, 66, 87, 108, 128, 146, 164, 180, 195, 209, 221, 231, 240, 246, 251, 254, 255, 254, 251, 246, 240, 231, 221, 209, 195, 180, 164, 146, 128, 108, 87, 66, 44, 22 };
+static int sinLookup[] = {0, 22, 44, 66, 87, 108, 128, 146, 164, 180, 195, 209, 221, 231, 240, 246, 251, 254, 255, 254, 251, 246, 240, 231, 221, 209, 195, 180, 164, 146, 128, 108, 87, 66, 44, 22 };
 static int lookupSize = sizeof(sinLookup);
 static int lookupIdx = 0;
 
@@ -312,8 +312,6 @@ void loop()
     static unsigned long prevReadTime = 0;
     static unsigned long prevDispTime = 0;
     static unsigned long prevPhaseTime = 0;
-
-    static long prevDelay = controlContext.delay_in_us;
  
     // Read Pots:
     long pot1 = 0;
@@ -325,10 +323,7 @@ void loop()
     }
     else if ((currentTime - prevReadTime) > 200) {
         pot2 = 1023 - analogRead(A14);
-        long newDelay = 1000 + pot2*pot2*2;
-        if (newDelay == prevDelay) controlContext.delay_in_us = newDelay;
-        prevDelay = newDelay;
-        controlContext.delay_in_us = 1000 + pot2*pot2*2;
+        controlContext.delay_in_us = 1 + pot2*pot2*2;
         if (controlContext.delay_in_us < minDelay_in_us) {
             controlContext.delay_in_us = minDelay_in_us;
         }
