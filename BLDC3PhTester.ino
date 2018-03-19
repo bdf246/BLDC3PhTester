@@ -42,15 +42,15 @@ LiquidCrystal_I2C  lcd(LCD_I2C,LCD_En_pin,LCD_Rw_pin,LCD_Rs_pin,LCD_D4_pin,LCD_D
 
 typedef struct {
     int  powerLevel;
-    long delay_in_ms;
+    long delay_in_us;
     int  curPhase;       // 1 to 6
 } CONTROLCONTEXT_ST;
 
     
-static CONTROLCONTEXT_ST controlContext = {0, 500, 1};
+static CONTROLCONTEXT_ST controlContext = {0, 500000, 1};
 
 
-static long prevPeriod = controlContext.delay_in_ms * 1000;
+static long prevDelay_in_us = controlContext.delay_in_us;
 static int  prevPowerLevel = controlContext.powerLevel;
 
 // ----------------------------------------------------------------------
@@ -107,7 +107,7 @@ void setup() {
     delay(3000);
     lcdReset();
 
-    Timer1.initialize(controlContext.delay_in_ms);         // initialize timer1, and set a 1/2 second period
+    Timer1.initialize(controlContext.delay_in_us);         // initialize timer1, and set a 1/2 second period
     Timer1.attachInterrupt(timer_callback);  // attaches timer_callback() as a timer overflow interrupt
  
 }
@@ -150,7 +150,7 @@ void UpdateDisplayBlankValues(CONTROLCONTEXT_ST & newContext) {
         pendingUpdate = true;
     }
 
-    if (newContext.delay_in_ms != dispPrevContext.delay_in_ms) {
+    if (newContext.delay_in_us != dispPrevContext.delay_in_us) {
         lcd.setCursor(6,1);
         lcd.print(text);
         pendingUpdate = true;
@@ -167,7 +167,7 @@ void UpdateDisplayBlankValues(CONTROLCONTEXT_ST & newContext) {
 
 // Update parts of display that have pending change...
 void UpdateDisplay() {
-    char text[10];
+    char text[20];
 
     if (dispPendingContext.powerLevel != dispPrevContext.powerLevel) {
         lcd.setCursor(6,0);
@@ -175,9 +175,14 @@ void UpdateDisplay() {
         lcd.print(text);
     }
 
-    if (dispPendingContext.delay_in_ms != dispPrevContext.delay_in_ms) {
+    if (dispPendingContext.delay_in_us != dispPrevContext.delay_in_us) {
         lcd.setCursor(6,1);
-        sprintf(text, "%4d", dispPendingContext.delay_in_ms);
+        if (dispPendingContext.delay_in_us > 10000) {
+            sprintf(text, "%4d [ms]", dispPendingContext.delay_in_us/1000);
+        }
+        else {
+            sprintf(text, "%4d [us]", dispPendingContext.delay_in_us);
+        }
         lcd.print(text);
     }
 
@@ -239,12 +244,12 @@ void timer_callback()
 {
     adjustOutputs();
 
-    long newDelay_in_us = controlContext.delay_in_ms * 1000;
+    long newDelay_in_us = controlContext.delay_in_us;
 
     // Adjust period if needed:
-    if (prevPeriod != newDelay_in_us) {
+    if (prevDelay_in_us != newDelay_in_us) {
         Timer1.setPeriod(newDelay_in_us);
-        prevPeriod = newDelay_in_us;
+        prevDelay_in_us = newDelay_in_us;
     }
 }
  
@@ -266,7 +271,7 @@ void loop()
     }
     else if ((currentTime - prevReadTime) > 200) {
         pot2 = analogRead(A14);
-        controlContext.delay_in_ms = 1 + pot2*pot2/500;
+        controlContext.delay_in_us = 1 + pot2*pot2*2;
         prevReadTime = currentTime;
     }
 
@@ -309,7 +314,7 @@ void loop()
     
     // Debug info...
     // char buffer[200];
-    // sprintf(buffer, "Power:%d, Delay:%d\n", controlContext.powerLevel, controlContext.delay_in_ms);
+    // sprintf(buffer, "Power:%d, Delay:%d\n", controlContext.powerLevel, controlContext.delay_in_us);
     // Serial.print(buffer);
 }
 
