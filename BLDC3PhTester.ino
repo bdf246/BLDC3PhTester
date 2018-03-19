@@ -305,7 +305,7 @@ void loop()
     }
     else if ((currentTime - prevReadTime) > 200) {
         pot2 = analogRead(A14);
-        controlContext.delay_in_us = 1 + pot2*pot2*2;
+        controlContext.delay_in_us = 3000 + pot2*pot2;
         prevReadTime = currentTime;
     }
 
