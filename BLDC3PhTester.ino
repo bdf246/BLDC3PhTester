@@ -291,6 +291,7 @@ void adjustPower() {
 void loop()
 {
     unsigned long currentTime = millis();
+    static bool firstPotRead = false;
     static unsigned long prevReadTime = 0;
     static unsigned long prevDispTime = 0;
     static unsigned long prevPhaseTime = 0;
@@ -300,13 +301,17 @@ void loop()
     long pot2 = 0;
 
     if ((currentTime - prevReadTime) == 100) {
-        pot1 = analogRead(A15);
-        controlContext.powerLevel = pot1/4;
+        if (!firstPotRead) {
+            pot1 = analogRead(A15);
+            controlContext.powerLevel = pot1/4;
+            firstPotRead = true;
+        }
     }
     else if ((currentTime - prevReadTime) > 200) {
         pot2 = analogRead(A14);
         controlContext.delay_in_us = 3000 + pot2*pot2;
         prevReadTime = currentTime;
+        firstPotRead = false;
     }
 
     if (prevPowerLevel != controlContext.powerLevel) {
