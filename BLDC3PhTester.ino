@@ -41,23 +41,26 @@ LiquidCrystal_I2C  lcd(LCD_I2C,LCD_En_pin,LCD_Rw_pin,LCD_Rs_pin,LCD_D4_pin,LCD_D
 // Main Logic Data Structures:
 
 typedef struct {
-    int  powerLevel;
-    long delay_in_us;
-    int  curPhase;       // 1 to 6
+    volatile int  powerLevel;
+    volatile long delay_in_us;
+    volatile int  curPhase;       // 1 to 6
 } CONTROLCONTEXT_ST;
 
     
 static CONTROLCONTEXT_ST controlContext = {0, 500000, 1};
 
 
-static long prevDelay_in_us = controlContext.delay_in_us;
+static volatile long prevDelay_in_us = controlContext.delay_in_us;
 static int  prevPowerLevel = controlContext.powerLevel;
 
 // 180/5 = 36 entries:
 static unsigned char sinLookup[] = {0, 22, 44, 66, 87, 108, 128, 146, 164, 180, 195, 209, 221, 231, 240, 246, 251, 254, 255, 254, 251, 246, 240, 231, 221, 209, 195, 180, 164, 146, 128, 108, 87, 66, 44, 22 };
-static int lookupSize = sizeof(sinLookup);
-static int lookupIdx = 0;
+const static int lookupSize = sizeof(sinLookup);
+static volatile int lookupIdx = 0;
 
+static CONTROLCONTEXT_ST dispPrevContext = controlContext;
+static CONTROLCONTEXT_ST dispPendingContext = controlContext;
+static bool pendingUpdate = false;
 
 // ----------------------------------------------------------------------
 
@@ -142,9 +145,6 @@ void lcdReset() {
 }
 
 
-static CONTROLCONTEXT_ST dispPrevContext = controlContext;
-static CONTROLCONTEXT_ST dispPendingContext = controlContext;
-static bool pendingUpdate = false;
 
 // Blank out parts of display that need to change, then delay...
 void UpdateDisplayBlankValues(CONTROLCONTEXT_ST & newContext) {
