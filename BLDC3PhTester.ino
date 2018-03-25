@@ -62,6 +62,8 @@ static CONTROLCONTEXT_ST dispPrevContext = controlContext;
 static CONTROLCONTEXT_ST dispPendingContext = controlContext;
 static bool pendingUpdate = false;
 
+static volatile bool useLookup = false;
+
 // ----------------------------------------------------------------------
 
 
@@ -116,7 +118,8 @@ void setup() {
     delay(3000);
     lcdReset();
 
-    Timer1.initialize(controlContext.delay_in_us/lookupSize);         // initialize timer1, and set a 1/2 second period
+    // Timer1.initialize(controlContext.delay_in_us/lookupSize);         // initialize timer1, and set a 1/2 second period
+    Timer1.initialize(controlContext.delay_in_us);         // initialize timer1, and set a 1/2 second period
     Timer1.attachInterrupt(timer_callback);  // attaches timer_callback() as a timer overflow interrupt
  
 }
@@ -203,7 +206,10 @@ void UpdateDisplay() {
 }
 
 void adjustOutputs() {
-    long curPower = ((long) controlContext.powerLevel) * ((long) sinLookup[lookupIdx]) / 255;
+    long curPower;
+    if (useLookup) curPower = ((long) controlContext.powerLevel) * ((long) sinLookup[lookupIdx]) / 255;
+    else           curPower = (long) controlContext.powerLevel;
+    // else           curPower = (((long) controlContext.powerLevel) * 4) / 5;
 
     if (controlContext.curPhase < 6) controlContext.curPhase++;
     else                             controlContext.curPhase = 1;
@@ -249,20 +255,34 @@ void adjustOutputs() {
 
 void timer_callback()
 {
-    lookupIdx++;
-
-    if (lookupIdx == lookupSize) {
-        lookupIdx = 0;
-        adjustOutputs();
+    if (useLookup) {
+        lookupIdx++;
+    
+        if (lookupIdx == lookupSize) {
+            lookupIdx = 0;
+            adjustOutputs();
+        }
+        else {
+            // Adjust power for new sin index:
+            adjustPower();
+        }
     }
     else {
-        // Adjust power for new sin index:
-        adjustPower();
+        adjustOutputs();
     }
 
     // Adjust period if needed:
     if (prevDelay_in_us != controlContext.delay_in_us) {
-        Timer1.setPeriod(controlContext.delay_in_us/lookupSize);
+        if (lookupIdx == 0) {
+            if (controlContext.delay_in_us < 3000) useLookup = false;
+            else                                   useLookup = true;
+        }
+
+        if (useLookup) {
+            Timer1.setPeriod(controlContext.delay_in_us/lookupSize);
+        } else {
+            Timer1.setPeriod(controlContext.delay_in_us);
+        }
         prevDelay_in_us = controlContext.delay_in_us;
     }
 }
@@ -309,7 +329,7 @@ void loop()
     }
     else if ((currentTime - prevReadTime) > 200) {
         pot2 = analogRead(A14);
-        controlContext.delay_in_us = 3000 + pot2*pot2;
+        controlContext.delay_in_us = 500 + pot2*pot2;
         prevReadTime = currentTime;
         firstPotRead = false;
     }
