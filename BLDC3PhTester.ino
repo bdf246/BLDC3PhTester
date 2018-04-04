@@ -53,16 +53,9 @@ static CONTROLCONTEXT_ST controlContext = {0, 500000, 1};
 static volatile long prevDelay_in_us = controlContext.delay_in_us;
 static int  prevPowerLevel = controlContext.powerLevel;
 
-// 180/5 = 36 entries:
-static unsigned char sinLookup[] = {0, 22, 44, 66, 87, 108, 128, 146, 164, 180, 195, 209, 221, 231, 240, 246, 251, 254, 255, 254, 251, 246, 240, 231, 221, 209, 195, 180, 164, 146, 128, 108, 87, 66, 44, 22 };
-const static int lookupSize = sizeof(sinLookup);
-static volatile int lookupIdx = 0;
-
 static CONTROLCONTEXT_ST dispPrevContext = controlContext;
 static CONTROLCONTEXT_ST dispPendingContext = controlContext;
 static bool pendingUpdate = false;
-
-static volatile bool useLookup = false;
 
 // ----------------------------------------------------------------------
 
@@ -118,7 +111,6 @@ void setup() {
     delay(3000);
     lcdReset();
 
-    // Timer1.initialize(controlContext.delay_in_us/lookupSize);         // initialize timer1, and set a 1/2 second period
     Timer1.initialize(controlContext.delay_in_us);         // initialize timer1, and set a 1/2 second period
     Timer1.attachInterrupt(timer_callback);  // attaches timer_callback() as a timer overflow interrupt
  
@@ -206,10 +198,7 @@ void UpdateDisplay() {
 }
 
 void adjustOutputs() {
-    long curPower;
-    if (useLookup) curPower = ((long) controlContext.powerLevel) * ((long) sinLookup[lookupIdx]) / 255;
-    else           curPower = (long) controlContext.powerLevel;
-    // else           curPower = (((long) controlContext.powerLevel) * 4) / 5;
+    long curPower = (long) controlContext.powerLevel;
 
     if (controlContext.curPhase < 6) controlContext.curPhase++;
     else                             controlContext.curPhase = 1;
@@ -255,40 +244,18 @@ void adjustOutputs() {
 
 void timer_callback()
 {
-    if (useLookup) {
-        lookupIdx++;
-    
-        if (lookupIdx == lookupSize) {
-            lookupIdx = 0;
-            adjustOutputs();
-        }
-        else {
-            // Adjust power for new sin index:
-            adjustPower();
-        }
-    }
-    else {
-        adjustOutputs();
-    }
+    adjustOutputs();
 
     // Adjust period if needed:
     if (prevDelay_in_us != controlContext.delay_in_us) {
-        if (lookupIdx == 0) {
-            if (controlContext.delay_in_us < 3000) useLookup = false;
-            else                                   useLookup = true;
-        }
-
-        if (useLookup) {
-            Timer1.setPeriod(controlContext.delay_in_us/lookupSize);
-        } else {
-            Timer1.setPeriod(controlContext.delay_in_us);
-        }
+        Timer1.setPeriod(controlContext.delay_in_us);
         prevDelay_in_us = controlContext.delay_in_us;
     }
 }
  
 void adjustPower() {
-    long curPower = ((long) controlContext.powerLevel) * ((long) sinLookup[lookupIdx]) / 255;
+    long curPower = (long) controlContext.powerLevel;
+
     switch(controlContext.curPhase) {
     case 1:
     case 2:
