@@ -213,28 +213,28 @@ void adjustOutputs() {
 
     switch(controlContext.curPhase) {
     case 1:
-        analogWrite (OUTPUT_PhaseB_BOT, 0);
-        analogWrite (OUTPUT_PhaseC_BOT, curPower);
+        analogWrite (OUTPUT_PhaseA_BOT, 0);
+        digitalWrite(OUTPUT_PhaseA_TOP, LOW); // Enables FET
         break;
     case 2:
-        digitalWrite(OUTPUT_PhaseA_TOP, HIGH);
-        digitalWrite(OUTPUT_PhaseB_TOP, LOW);
+        digitalWrite(OUTPUT_PhaseC_TOP, HIGH); // Disables FET
+        analogWrite (OUTPUT_PhaseC_BOT, curPower);
         break;
     case 3:
-        analogWrite (OUTPUT_PhaseC_BOT, 0);
-        analogWrite (OUTPUT_PhaseA_BOT, curPower);
+        analogWrite (OUTPUT_PhaseB_BOT, 0);
+        digitalWrite(OUTPUT_PhaseB_TOP, LOW); // Enables FET
         break;
     case 4:
-        digitalWrite(OUTPUT_PhaseB_TOP, HIGH);
-        digitalWrite(OUTPUT_PhaseC_TOP, LOW);
+        digitalWrite(OUTPUT_PhaseA_TOP, HIGH); // Disables FET
+        analogWrite (OUTPUT_PhaseA_BOT, curPower);
         break;
     case 5:
-        analogWrite (OUTPUT_PhaseA_BOT, 0);
-        analogWrite (OUTPUT_PhaseB_BOT, curPower);
+        analogWrite (OUTPUT_PhaseC_BOT, 0);
+        digitalWrite(OUTPUT_PhaseC_TOP, LOW); // Enables FET
         break;
     case 6:
-        digitalWrite(OUTPUT_PhaseC_TOP, HIGH);
-        digitalWrite(OUTPUT_PhaseA_TOP, LOW);
+        digitalWrite(OUTPUT_PhaseB_TOP, HIGH); // Disables FET
+        analogWrite (OUTPUT_PhaseB_BOT, curPower);
         break;
     }
 
@@ -258,15 +258,24 @@ void adjustPower() {
 
     switch(controlContext.curPhase) {
     case 1:
+        analogWrite (OUTPUT_PhaseB_BOT, curPower);
+        break;
     case 2:
+        analogWrite (OUTPUT_PhaseB_BOT, curPower);
         analogWrite (OUTPUT_PhaseC_BOT, curPower);
         break;
     case 3:
+        analogWrite (OUTPUT_PhaseC_BOT, curPower);
+        break;
     case 4:
+        analogWrite (OUTPUT_PhaseC_BOT, curPower);
         analogWrite (OUTPUT_PhaseA_BOT, curPower);
         break;
     case 5:
+        analogWrite (OUTPUT_PhaseA_BOT, curPower);
+        break;
     case 6:
+        analogWrite (OUTPUT_PhaseA_BOT, curPower);
         analogWrite (OUTPUT_PhaseB_BOT, curPower);
         break;
     }
