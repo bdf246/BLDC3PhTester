@@ -1,8 +1,10 @@
 #include <LCD.h>
 #include <LiquidCrystal_I2C.h>
 
- 
 #include "TimerOne.h"
+
+#define EI_ARDUINO_INTERRUPTED_PIN
+#include "EnableInterrupt.h"
  
 // ----------------------------------------------------------------------
 // Defines:
@@ -11,6 +13,7 @@
 
 // BOT is PWD, TOP is On or Off
 
+
 #define OUTPUT_PhaseA_BOT 6
 #define OUTPUT_PhaseB_BOT 7
 #define OUTPUT_PhaseC_BOT 8
@@ -18,8 +21,17 @@
 #define OUTPUT_PhaseB_TOP 10
 #define OUTPUT_PhaseC_TOP 11
 
+#define pinButtonSpeedAutoToggle       50
+#define pinButtonSpeedPotDisableToggle 51
+#define pinButtonSpeedDec              52
+#define pinButtonSpeedInc              53
+// #define pinButtonSpeedInc              15
+// #define pinButtonSpeedDec              14
+// #define pinButtonSpeedPotDisableToggle 2
+// #define pinButtonSpeedAutoToggle       3
+
 #define DISPLAY_UPDATE_FREQ_IN_MS 200
-#define DISPLAY_BLANKINGIME_IN_MS 60 // For updating ~4 digits, blank them for this time before update.
+#define DISPLAY_BLANKINGIME_IN_MS 20 // For updating ~4 digits, blank them for this time before update.
 #define DISPLAY_UPDATE_DELAY_CHECK_IN_MS (DISPLAY_UPDATE_FREQ_IN_MS-DISPLAY_BLANKINGIME_IN_MS)
 
 // ----------------------------------------------------------------------
@@ -42,7 +54,7 @@ LiquidCrystal_I2C  lcd(LCD_I2C,LCD_En_pin,LCD_Rw_pin,LCD_Rs_pin,LCD_D4_pin,LCD_D
 
 typedef struct {
     volatile int  powerLevel;
-    volatile long delay_in_us;
+    volatile unsigned long delay_in_us;
     volatile int  curPhase;       // 1 to 6
 } CONTROLCONTEXT_ST;
 
@@ -50,12 +62,22 @@ typedef struct {
 static CONTROLCONTEXT_ST controlContext = {0, 500000, 1};
 
 
-static volatile long prevDelay_in_us = controlContext.delay_in_us;
+static volatile unsigned long prevDelay_in_us = controlContext.delay_in_us;
 static int  prevPowerLevel = controlContext.powerLevel;
 
 static CONTROLCONTEXT_ST dispPrevContext = controlContext;
 static CONTROLCONTEXT_ST dispPendingContext = controlContext;
 static bool pendingUpdate = false;
+
+static volatile bool speedPotEnabled = true;
+static volatile bool autoEnabled = false;
+
+static volatile bool buttonHolding = false;
+static unsigned long buttonHoldingStartTime = millis();
+
+const unsigned long minDelay=500;
+const unsigned long maxDelay=1047029; // minDelay+(1023*1023);
+
 
 // ----------------------------------------------------------------------
 
@@ -91,14 +113,10 @@ void setup() {
     analogWrite(OUTPUT_PhaseC_BOT, 0);
 
     // Setup POT outputs:
-    pinMode(50,OUTPUT);
-    pinMode(51,OUTPUT);
-    pinMode(52,OUTPUT);
-    pinMode(53,OUTPUT);
-    digitalWrite(50,LOW);
-    digitalWrite(51,HIGH);
-    digitalWrite(52,LOW);
-    digitalWrite(53,HIGH);
+    pinMode(pinButtonSpeedPotDisableToggle,INPUT);
+    pinMode(pinButtonSpeedInc,INPUT);
+    pinMode(pinButtonSpeedDec,INPUT);
+    pinMode(pinButtonSpeedAutoToggle,INPUT);
 
     // Setup LCD:
     lcd.begin (20,4);
@@ -113,8 +131,41 @@ void setup() {
 
     Timer1.initialize(controlContext.delay_in_us);         // initialize timer1, and set a 1/2 second period
     Timer1.attachInterrupt(timer_callback);  // attaches timer_callback() as a timer overflow interrupt
- 
+
+    enableInterrupt(pinButtonSpeedPotDisableToggle, &interruptButtons, RISING);
+    enableInterrupt(pinButtonSpeedInc, &interruptButtons, RISING);
+    enableInterrupt(pinButtonSpeedDec, &interruptButtons, RISING);
+    enableInterrupt(pinButtonSpeedAutoToggle, &interruptButtons, RISING);
+
+// enableInterrupt(uint8_t interruptDesignator, void (*userFunction)(void), uint8_t mode);
 }
+
+void interruptButtons(void) {
+    switch (arduinoInterruptedPin) {
+    case pinButtonSpeedPotDisableToggle:
+        speedPotEnabled = !speedPotEnabled;
+        if (speedPotEnabled) autoEnabled = false;
+        break;
+    case pinButtonSpeedInc:
+        if (!speedPotEnabled) incrementDelay();
+        buttonHolding = false;
+        break;
+    case pinButtonSpeedDec:
+        if (!speedPotEnabled) decrementDelay();
+        buttonHolding = false;
+        break;
+    case pinButtonSpeedAutoToggle:
+        autoEnabled = !autoEnabled;
+        if (autoEnabled) speedPotEnabled = false;
+        break;
+    }
+
+    char buf[200];
+    sprintf(buf, "Button Pressed: %d maxDelay:%lu\n", arduinoInterruptedPin, maxDelay);
+    Serial.print(buf);
+
+}
+
 
 void lcdReset() {
     lcd.clear();
@@ -131,12 +182,12 @@ void lcdReset() {
     lcd.print(line);
 
     lcd.setCursor(0,1);
-    sprintf(line, "Delay:     [ms]");
+    sprintf(line, "Delay:        [us]");
     lcd.print(line);
 
-    lcd.setCursor(0,2);
-    sprintf(line, "Phase:     ");
-    lcd.print(line);
+    // lcd.setCursor(0,2);
+    // sprintf(line, "Phase:     ");
+    // lcd.print(line);
 }
 
 
@@ -153,15 +204,15 @@ void UpdateDisplayBlankValues(CONTROLCONTEXT_ST & newContext) {
 
     if (newContext.delay_in_us != dispPrevContext.delay_in_us) {
         lcd.setCursor(6,1);
-        lcd.print(text);
+        lcd.print("      ");
         pendingUpdate = true;
     }
 
-    if (newContext.curPhase != dispPrevContext.curPhase) {
-        lcd.setCursor(6,2);
-        lcd.print(text);
-        pendingUpdate = true;
-    }
+    // if (newContext.curPhase != dispPrevContext.curPhase) {
+        // lcd.setCursor(6,2);
+        // lcd.print(text);
+        // pendingUpdate = true;
+    // }
 
     if (pendingUpdate) dispPendingContext = newContext;
 }
@@ -178,20 +229,21 @@ void UpdateDisplay() {
 
     if (dispPendingContext.delay_in_us != dispPrevContext.delay_in_us) {
         lcd.setCursor(6,1);
-        if (dispPendingContext.delay_in_us > 10000) {
-            sprintf(text, "%4d [ms]", dispPendingContext.delay_in_us/1000);
-        }
-        else {
-            sprintf(text, "%4d [us]", dispPendingContext.delay_in_us);
-        }
+        // if (dispPendingContext.delay_in_us > 10000) {
+            // sprintf(text, "%4d [ms]", dispPendingContext.delay_in_us/1000);
+        // }
+        // else {
+            // sprintf(text, "%4d [us]", dispPendingContext.delay_in_us);
+        // }
+        sprintf(text, "%7lu", dispPendingContext.delay_in_us);
         lcd.print(text);
     }
 
-    if (dispPendingContext.curPhase != dispPrevContext.curPhase) {
-        lcd.setCursor(6,2);
-        sprintf(text, "%4d", dispPendingContext.curPhase);
-        lcd.print(text);
-    }
+    // if (dispPendingContext.curPhase != dispPrevContext.curPhase) {
+        // lcd.setCursor(6,2);
+        // sprintf(text, "%4d", dispPendingContext.curPhase);
+        // lcd.print(text);
+    // }
 
     dispPrevContext = dispPendingContext;
     pendingUpdate = false;
@@ -283,6 +335,14 @@ void adjustPower() {
     return;
 }
 
+void incrementDelay() {
+    if (controlContext.delay_in_us < maxDelay) controlContext.delay_in_us++;
+}
+
+void decrementDelay() {
+    if (controlContext.delay_in_us > minDelay) controlContext.delay_in_us--;
+}
+
 
 void loop()
 {
@@ -304,8 +364,28 @@ void loop()
         }
     }
     else if ((currentTime - prevReadTime) > 200) {
-        pot2 = analogRead(A14);
-        controlContext.delay_in_us = 500 + pot2*pot2;
+        if (speedPotEnabled) {
+            pot2 = analogRead(A14);
+            controlContext.delay_in_us = minDelay + pot2*pot2;
+        }
+        else if (!autoEnabled) {
+            // Check inc/dec button presses;
+            // If no button interrupts and 1
+            bool incrementButton = (bool) digitalRead(pinButtonSpeedInc);
+            bool decrementButton = (bool) digitalRead(pinButtonSpeedDec);
+            if (!buttonHolding) {
+                if ((incrementButton && !decrementButton) || (decrementButton && !incrementButton)) {
+                    buttonHoldingStartTime = millis();
+                    buttonHolding = true;
+                }
+            }
+            else {
+                if ((buttonHoldingStartTime - currentTime) > 1000) {
+                    if (incrementButton) incrementDelay();
+                    if (decrementButton) decrementDelay();
+                }
+            }
+        }
         prevReadTime = currentTime;
         firstPotRead = false;
     }
@@ -315,6 +395,22 @@ void loop()
         adjustPower();
         interrupts();
         prevPowerLevel = controlContext.powerLevel;
+    }
+
+const unsigned long targetDelay_in_us=16667;
+static unsigned long timeOfLastAdjustment=0;
+const unsigned long adjustmentPerMs_in_us = 200; // 1/5000s for 5 second startup.
+    if (autoEnabled) {
+        // 5 seconds from 1 sec to fast so roughly want factor of ?
+        // 
+        unsigned long timeDiff =  currentTime - timeOfLastAdjustment;
+        unsigned long adjustment_in_us = timeDiff * adjustmentPerMs_in_us;
+
+        if (controlContext.delay_in_us > targetDelay_in_us) {
+            controlContext.delay_in_us -= adjustment_in_us;
+            if (controlContext.delay_in_us < targetDelay_in_us) controlContext.delay_in_us = targetDelay_in_us;
+        }
+        timeOfLastAdjustment = currentTime;
     }
 
     // Update display/debug:
