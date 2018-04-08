@@ -364,34 +364,36 @@ void loop()
         }
     }
     else if ((currentTime - prevReadTime) > 100) {
-        if (speedPotEnabled) {
-            pot2 = analogRead(A14);
-            controlContext.delay_in_us = minDelay + pot2*pot2;
-        }
-        else if (!autoEnabled) {
-            // Check inc/dec button presses;
-            // If no button interrupts and 1
-            bool incrementButton = (bool) digitalRead(pinButtonSpeedInc);
-            bool decrementButton = (bool) digitalRead(pinButtonSpeedDec);
-            if (!buttonHolding) {
-                if ((incrementButton && !decrementButton) || (decrementButton && !incrementButton)) {
-                    buttonHoldingStartTime = millis();
-                    buttonHolding = true;
-                }
+        if (!autoEnabled) {
+            if (speedPotEnabled) {
+                pot2 = analogRead(A14);
+                controlContext.delay_in_us = minDelay + pot2*pot2;
             }
             else {
-                if ((buttonHoldingStartTime - currentTime) > 1000) {
-                    if (incrementButton) incrementDelay();
-                    if (incrementButton) incrementDelay();
-                    if (incrementButton) incrementDelay();
-                    if (incrementButton) incrementDelay();
-                    if (incrementButton) incrementDelay();
-
-                    if (decrementButton) decrementDelay();
-                    if (decrementButton) decrementDelay();
-                    if (decrementButton) decrementDelay();
-                    if (decrementButton) decrementDelay();
-                    if (decrementButton) decrementDelay();
+                // Check inc/dec button presses;
+                // If no button interrupts and 1
+                bool incrementButton = (bool) digitalRead(pinButtonSpeedInc);
+                bool decrementButton = (bool) digitalRead(pinButtonSpeedDec);
+                if (!buttonHolding) {
+                    if ((incrementButton && !decrementButton) || (decrementButton && !incrementButton)) {
+                        buttonHoldingStartTime = millis();
+                        buttonHolding = true;
+                    }
+                }
+                else {
+                    if ((buttonHoldingStartTime - currentTime) > 1000) {
+                        if (incrementButton) incrementDelay();
+                        if (incrementButton) incrementDelay();
+                        if (incrementButton) incrementDelay();
+                        if (incrementButton) incrementDelay();
+                        if (incrementButton) incrementDelay();
+    
+                        if (decrementButton) decrementDelay();
+                        if (decrementButton) decrementDelay();
+                        if (decrementButton) decrementDelay();
+                        if (decrementButton) decrementDelay();
+                        if (decrementButton) decrementDelay();
+                    }
                 }
             }
         }
@@ -412,11 +414,11 @@ const unsigned long adjustmentPerMs_in_us = 200; // 1/5000s for 5 second startup
     if (autoEnabled) {
         // 5 seconds from 1 sec to fast so roughly want factor of ?
         // 
-        unsigned long timeDiff =  currentTime - timeOfLastAdjustment;
-        unsigned long adjustment_in_us = timeDiff * adjustmentPerMs_in_us;
+        unsigned long timeDiff_in_ms =  currentTime - timeOfLastAdjustment;
+        unsigned long adjustment_in_us = (timeDiff_in_ms * adjustmentPerMs_in_us) / 1000;
 
         if (controlContext.delay_in_us > targetDelay_in_us) {
-            controlContext.delay_in_us -= adjustment_in_us;
+            if (adjustment_in_us < controlContext.delay_in_us) controlContext.delay_in_us -= adjustment_in_us;
             if (controlContext.delay_in_us < targetDelay_in_us) controlContext.delay_in_us = targetDelay_in_us;
         }
         timeOfLastAdjustment = currentTime;
