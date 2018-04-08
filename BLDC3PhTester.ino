@@ -356,14 +356,14 @@ void loop()
     long pot1 = 0;
     long pot2 = 0;
 
-    if ((currentTime - prevReadTime) == 100) {
+    if ((currentTime - prevReadTime) == 50) {
         if (!firstPotRead) {
             pot1 = analogRead(A15);
             controlContext.powerLevel = pot1/4;
             firstPotRead = true;
         }
     }
-    else if ((currentTime - prevReadTime) > 200) {
+    else if ((currentTime - prevReadTime) > 100) {
         if (speedPotEnabled) {
             pot2 = analogRead(A14);
             controlContext.delay_in_us = minDelay + pot2*pot2;
@@ -382,6 +382,15 @@ void loop()
             else {
                 if ((buttonHoldingStartTime - currentTime) > 1000) {
                     if (incrementButton) incrementDelay();
+                    if (incrementButton) incrementDelay();
+                    if (incrementButton) incrementDelay();
+                    if (incrementButton) incrementDelay();
+                    if (incrementButton) incrementDelay();
+
+                    if (decrementButton) decrementDelay();
+                    if (decrementButton) decrementDelay();
+                    if (decrementButton) decrementDelay();
+                    if (decrementButton) decrementDelay();
                     if (decrementButton) decrementDelay();
                 }
             }
