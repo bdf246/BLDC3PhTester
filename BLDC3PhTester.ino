@@ -78,8 +78,11 @@ static unsigned long buttonHoldingStartTime = millis();
 const unsigned long minDelay=500;
 const unsigned long maxDelay=1047029; // minDelay+(1023*1023);
 
+const int SPEED_ADJUSTMENT_NUM=5;
 
 // ----------------------------------------------------------------------
+void incrementDelay(unsigned char amountToAdd=1);
+void decrementDelay(unsigned char amountToSubt=1);
 
 
 void setup() {
@@ -335,12 +338,26 @@ void adjustPower() {
     return;
 }
 
-void incrementDelay() {
-    if (controlContext.delay_in_us < maxDelay) controlContext.delay_in_us++;
+
+void incrementDelay(unsigned char amountToAdd) {
+    if ((controlContext.delay_in_us + amountToAdd) > maxDelay) {
+        controlContext.delay_in_us = maxDelay;
+    }
+    else {
+        controlContext.delay_in_us += amountToAdd;
+    }
 }
 
-void decrementDelay() {
-    if (controlContext.delay_in_us > minDelay) controlContext.delay_in_us--;
+
+void decrementDelay(unsigned char amountToSubt) {
+    if ((amountToSubt > controlContext.delay_in_us) 
+     || ((controlContext.delay_in_us-amountToSubt) < minDelay)) 
+    {
+        controlContext.delay_in_us = minDelay;
+    }
+    else {
+        controlContext.delay_in_us -= amountToSubt;
+    }
 }
 
 
@@ -382,17 +399,8 @@ void loop()
                 }
                 else {
                     if ((buttonHoldingStartTime - currentTime) > 1000) {
-                        if (incrementButton) incrementDelay();
-                        if (incrementButton) incrementDelay();
-                        if (incrementButton) incrementDelay();
-                        if (incrementButton) incrementDelay();
-                        if (incrementButton) incrementDelay();
-    
-                        if (decrementButton) decrementDelay();
-                        if (decrementButton) decrementDelay();
-                        if (decrementButton) decrementDelay();
-                        if (decrementButton) decrementDelay();
-                        if (decrementButton) decrementDelay();
+                        if (incrementButton) incrementDelay(SPEED_ADJUSTMENT_NUM);
+                        if (decrementButton) decrementDelay(SPEED_ADJUSTMENT_NUM);
                     }
                 }
             }
