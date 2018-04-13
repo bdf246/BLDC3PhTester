@@ -80,6 +80,11 @@ const unsigned long maxDelay=1047029; // minDelay+(1023*1023);
 
 const int SPEED_ADJUSTMENT_NUM=5;
 
+// Auto Feature:
+// const unsigned long targetDelay_in_us=16667;
+const unsigned long targetDelay_in_us=2778;
+const unsigned long adjustmentPerMs_in_us = 200; // 1/5000s for 5 second startup.
+
 // ----------------------------------------------------------------------
 void incrementDelay(unsigned char amountToAdd=1);
 void decrementDelay(unsigned char amountToSubt=1);
@@ -416,14 +421,12 @@ void loop()
         prevPowerLevel = controlContext.powerLevel;
     }
 
-const unsigned long targetDelay_in_us=16667;
-static unsigned long timeOfLastAdjustment=0;
-const unsigned long adjustmentPerMs_in_us = 200; // 1/5000s for 5 second startup.
+    static unsigned long timeOfLastAdjustment=0;
     if (autoEnabled) {
         // 5 seconds from 1 sec to fast so roughly want factor of ?
         // 
         unsigned long timeDiff_in_ms =  currentTime - timeOfLastAdjustment;
-        unsigned long adjustment_in_us = (timeDiff_in_ms * adjustmentPerMs_in_us) / 1000;
+        unsigned long adjustment_in_us = (timeDiff_in_ms*1000) * adjustmentPerMs_in_us;
 
         if (controlContext.delay_in_us > targetDelay_in_us) {
             if (adjustment_in_us < controlContext.delay_in_us) controlContext.delay_in_us -= adjustment_in_us;
