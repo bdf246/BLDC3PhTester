@@ -11,24 +11,42 @@
 //
 //
 
+#define NANO 0
+
 // BOT is PWD, TOP is On or Off
 
 
-#define OUTPUT_PhaseA_BOT 6
-#define OUTPUT_PhaseB_BOT 7
-#define OUTPUT_PhaseC_BOT 8
-#define OUTPUT_PhaseA_TOP 9
-#define OUTPUT_PhaseB_TOP 10
-#define OUTPUT_PhaseC_TOP 11
-
-#define pinButtonSpeedAutoToggle       50
-#define pinButtonSpeedPotDisableToggle 51
-#define pinButtonSpeedDec              52
-#define pinButtonSpeedInc              53
-// #define pinButtonSpeedInc              15
-// #define pinButtonSpeedDec              14
-// #define pinButtonSpeedPotDisableToggle 2
-// #define pinButtonSpeedAutoToggle       3
+#if NANO
+    // Nano PWM D3 D5 D6 D9 D10 D11:
+    //  - D9/D10 on OC1A/B did not work.
+    #define OUTPUT_PhaseA_BOT 3
+    #define OUTPUT_PhaseB_BOT 5
+    #define OUTPUT_PhaseC_BOT 6
+    #define OUTPUT_PhaseA_TOP 10
+    #define OUTPUT_PhaseB_TOP 11
+    #define OUTPUT_PhaseC_TOP 12
+    #define pinButtonSpeedAutoToggle       4
+    #define pinButtonSpeedPotDisableToggle 7
+    #define pinButtonSpeedDec              8
+    // pin 9 didn't work...
+    // #define pinButtonSpeedInc              9
+    #define pinButtonSpeedInc              2
+    #define pinSpeedPot A0
+    #define pinPowerPot A1
+#else
+    #define OUTPUT_PhaseA_BOT 6
+    #define OUTPUT_PhaseB_BOT 7
+    #define OUTPUT_PhaseC_BOT 8
+    #define OUTPUT_PhaseA_TOP 9
+    #define OUTPUT_PhaseB_TOP 10
+    #define OUTPUT_PhaseC_TOP 11
+    #define pinButtonSpeedAutoToggle       50
+    #define pinButtonSpeedPotDisableToggle 51
+    #define pinButtonSpeedDec              52
+    #define pinButtonSpeedInc              53
+    #define pinSpeedPot A14
+    #define pinPowerPot A15
+#endif
 
 #define DISPLAY_UPDATE_FREQ_IN_MS 200
 #define DISPLAY_BLANKINGIME_IN_MS 20 // For updating ~4 digits, blank them for this time before update.
@@ -37,7 +55,11 @@
 // ----------------------------------------------------------------------
 // LCD Stuff
 // Find your address from I2C Scanner function and add it here:
-#define LCD_I2C 0x3F
+#if NANO
+    #define LCD_I2C 0x27
+#else 
+    #define LCD_I2C 0x3F
+#endif
 #define LCD_BACKLIGHT_PIN 3
 #define LCD_En_pin  2
 #define LCD_Rw_pin  1
@@ -78,7 +100,7 @@ static unsigned long buttonHoldingStartTime = millis();
 const unsigned long minDelay=500;
 const unsigned long maxDelay=1047029; // minDelay+(1023*1023);
 
-const int SPEED_ADJUSTMENT_NUM=5;
+const unsigned char SPEED_ADJUSTMENT_NUM=5;
 
 // Auto Feature:
 // const unsigned long targetDelay_in_us=16667;
@@ -91,6 +113,7 @@ void decrementDelay(unsigned char amountToSubt=1);
 
 
 void setup() {
+#if !NANO
     // ----------------------------------------------------------------------
     // Change the frequency of the PWM output for pins 6, 7, and 8.
     // These pins are controlled byt the TCCR4 clock and the frequency is configurable
@@ -100,6 +123,7 @@ void setup() {
     // A test showed this resulted in 32kHz.
     TCCR4B = (TCCR4B & 0b11111000) | 0x01;
     // ----------------------------------------------------------------------
+#endif
     
     // Debug:
     Serial.begin(9600);
@@ -380,7 +404,7 @@ void loop()
 
     if ((currentTime - prevReadTime) == 50) {
         if (!firstPotRead) {
-            pot1 = analogRead(A15);
+            pot1 = analogRead(pinPowerPot);
             controlContext.powerLevel = pot1/4;
             firstPotRead = true;
         }
@@ -388,7 +412,7 @@ void loop()
     else if ((currentTime - prevReadTime) > 100) {
         if (!autoEnabled) {
             if (speedPotEnabled) {
-                pot2 = analogRead(A14);
+                pot2 = analogRead(pinSpeedPot);
                 controlContext.delay_in_us = minDelay + pot2*pot2;
             }
             else {
