@@ -105,7 +105,7 @@ const unsigned char SPEED_ADJUSTMENT_NUM=5;
 // Auto Feature:
 // const unsigned long targetDelay_in_us=16667;
 const unsigned long targetDelay_in_us=2778;
-const unsigned long adjustmentPerMs_in_us = 200; // 1/5000s for 5 second startup.
+const unsigned long adjustmentPerMs_in_us = 5; // 1/5000s for 5 second startup.
 
 // ----------------------------------------------------------------------
 void incrementDelay(unsigned char amountToAdd=1);
@@ -126,7 +126,7 @@ void setup() {
 #endif
     
     // Debug:
-    Serial.begin(9600);
+    Serial.begin(115200);
     Serial.println("Starting!!!");
 
 
@@ -193,7 +193,8 @@ void interruptButtons(void) {
     }
 
     char buf[200];
-    sprintf(buf, "Button Pressed: %d maxDelay:%lu\n", arduinoInterruptedPin, maxDelay);
+    // sprintf(buf, "Button Pressed: %d maxDelay:%lu\n", arduinoInterruptedPin, maxDelay);
+    sprintf(buf, "Button Pressed: %d\n", arduinoInterruptedPin);
     Serial.print(buf);
 
 }
@@ -452,11 +453,18 @@ void loop()
         // 5 seconds from 1 sec to fast so roughly want factor of ?
         // 
         unsigned long timeDiff_in_ms =  currentTime - timeOfLastAdjustment;
-        unsigned long adjustment_in_us = (timeDiff_in_ms*1000) * adjustmentPerMs_in_us;
-
-        if (controlContext.delay_in_us > targetDelay_in_us) {
-            if (adjustment_in_us < controlContext.delay_in_us) controlContext.delay_in_us -= adjustment_in_us;
-            if (controlContext.delay_in_us < targetDelay_in_us) controlContext.delay_in_us = targetDelay_in_us;
+        unsigned long amountToGo = controlContext.delay_in_us - targetDelay_in_us;
+        if (timeDiff_in_ms > 2) {
+            unsigned long adjustment_in_us = 1 + amountToGo/(timeDiff_in_ms*10);
+    
+            // char buf[200];
+            // sprintf(buf, "timeDiff_in_ms:%-8lu adjustment_in_us:%-8lu\n", timeDiff_in_ms, adjustment_in_us);
+            // Serial.print(buf);
+    
+            if (controlContext.delay_in_us > targetDelay_in_us) {
+                if (adjustment_in_us < controlContext.delay_in_us) controlContext.delay_in_us -= adjustment_in_us;
+                if (controlContext.delay_in_us < targetDelay_in_us) controlContext.delay_in_us = targetDelay_in_us;
+            }
         }
         timeOfLastAdjustment = currentTime;
     }
