@@ -403,9 +403,11 @@ void loop()
                     }
                 }
                 else {
-                    if ((buttonHoldingStartTime - currentTime) > 1000) {
+                    if ((currentTime - buttonHoldingStartTime) > 1000) {
+                        noInterrupts();
                         if (incrementButton) incrementDelay(SPEED_ADJUSTMENT_NUM);
                         if (decrementButton) decrementDelay(SPEED_ADJUSTMENT_NUM);
+                        interrupts();
                     }
                 }
             }
